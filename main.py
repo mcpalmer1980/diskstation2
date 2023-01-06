@@ -2,7 +2,6 @@
 from common import *
 
 def main_window(theme='DarkBlack1', size=16):
-    print(sg.clipboard_get())
     tt.set('main')
 
     theme = options.get('theme', theme)

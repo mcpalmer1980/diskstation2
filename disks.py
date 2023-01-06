@@ -3,7 +3,7 @@ from common import *
 default_partitions = [
         '+OPL (2G)',
         'POPS (50G)',
-        'ROMS (500G)' ]
+        'ROMS (5G)' ]
 
 def format_HDD():
     tt.set('format')
@@ -44,7 +44,12 @@ def format_HDD():
                 pvalues.append(new)
                 window['partitions'].update(pvalues)
         elif event == tt.format:
-            format_drive(dev, pvalues)
+            if sg.popup_ok_cancel('All data will be destroyed. Please ensure that this'  
+                    'is the correct drive', sel) == 'OK':
+                window.close()
+                format_drive(dev, pvalues)
+                return
+
         elif event == 'drive':
             sel = values['drive']
             dev = choices[sel]
@@ -53,7 +58,6 @@ def format_HDD():
             pvalues = default_partitions[:]
             total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
             print(f'total {format_size(total_size)}, drive: {format_size(drive_size)}')
-            print(total_size > drive_size)
             while total_size > drive_size:
                 pvalues.pop(-1)
                 total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
@@ -91,6 +95,43 @@ def edit_part(part, avail):
     window.close()
     return rvalue
 
+def format_drive(device, parts):
+    PIPE = sp.PIPE
+    cmd = os.path.join(root, 'pfsshell')
+    inp  = f'device {device}\n'
+    inp += f'initialize yes\n'
+    inp += f'mount {device}\n'
+    for part in parts:
+        name, size = part.split()
+        size = size.strip('()')
+        inp += f'mkpart {name} {size} PFS\n'
+    inp += 'exit\n'
+    print('\nRunning command', cmd)
+
+    count = 0
+    layout = [
+        [sg.Text('Formatting PS2 HDD', size = 30)],
+        [sg.Text('.', key='dots')]]
+    window = sg.Window('Please Wait', layout, enable_close_attempted_event=True,
+            modal=True)
+    p = sp.Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+    while True:
+        window.read(timeout=250)
+        if inp:
+            p.stdin.write(inp.encode())
+        count += 1
+        dots = '.' * (count % 20 + 1)
+        window['dots'].update(dots)
+        if p.poll() != None:
+            break
+        
+    stdout, stderr = p.communicate()
+    print(stdout.decode())
+    if p.returncode:
+        print(stderr.decode())
+    print(f'Return value:', p.returncode)
+    window.close()
 
 
 
