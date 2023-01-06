@@ -106,8 +106,6 @@ def theme_menu(theme=False):
     return
 
 
-
-
 if __name__ == '__main__':
     tt.load('english')
     load_options()

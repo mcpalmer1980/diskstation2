@@ -1,4 +1,4 @@
-import os, sys, shutil, pyperclip, time, random, pickle
+import os, sys, shutil, time, random, pickle
 from io import StringIO
 import PySimpleGUI as sg, subprocess as sp
 

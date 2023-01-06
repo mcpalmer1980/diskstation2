@@ -23,3 +23,4 @@ buttons::cancel==Cancel::ok==Okay
 available==Available Space
 name==Name==Enter a unique partition name
 size==Size==Enter a partition size using M (megabyte) or G (gigabyte)
+notps2== ==Not a PS2 formated HDD.

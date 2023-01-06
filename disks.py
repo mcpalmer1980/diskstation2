@@ -3,7 +3,7 @@ from common import *
 default_partitions = [
         '+OPL (2G)',
         'POPS (50G)',
-        'ROMS (5G)' ]
+        'ROMS (500G)' ]
 
 def format_HDD():
     tt.set('format')
@@ -17,7 +17,7 @@ def format_HDD():
         [sg.Text(tt.partitions)],
         [sg.Listbox(pvalues, key='partitions', size=(40, 10), expand_x=True)],
         [sg.Button(b, disabled=True) for b in tt.pbuttons],
-        [sg.Push()]  + [sg.Button(b) for b in tt.buttons]  ]
+        [sg.Push(), sg.Button(tt.cancel), sg.Button(tt.format, disabled=True)]  ]
     
     window = sg.Window(tt.title, layout, modal=True, finalize=True)
     tt.set_tooltips(window)
@@ -43,6 +43,8 @@ def format_HDD():
             if new:
                 pvalues.append(new)
                 window['partitions'].update(pvalues)
+        elif event == tt.format:
+            format_drive(dev, pvalues)
         elif event == 'drive':
             sel = values['drive']
             dev = choices[sel]
@@ -50,12 +52,16 @@ def format_HDD():
             
             pvalues = default_partitions[:]
             total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
+            print(f'total {format_size(total_size)}, drive: {format_size(drive_size)}')
+            print(total_size > drive_size)
             while total_size > drive_size:
                 pvalues.pop(-1)
                 total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
-
+            
+            window['partitions'].update(pvalues)
             for b in tt.pbuttons:
                 window[b].update(disabled = False)
+            window[tt.format].update(disabled=False)
 
     window.close()
 
@@ -84,6 +90,9 @@ def edit_part(part, avail):
             print(f"Illegal size entered ({values['size']})")
     window.close()
     return rvalue
+
+
+
 
 class DriveInfo():
     def __init__(self, device, text):
@@ -135,13 +144,3 @@ def get_linux_drives():
         print(' ', i)
     return choices, info
 
-
-def test():
-    PIPE = sp.PIPE
-    cmd = os.path.join(root, 'pfsshell')
-    text = 'help\nexit'.encode()
-    p1 = sp.Popen(cmd, stdout=PIPE, stdin=PIPE, stderr=PIPE)
-    r, w = p1.communicate(input=text)
-    print(r)
-    for l in w.decode().split('\n'):
-        print(l)

@@ -1,4 +1,4 @@
-import os, sys, shutil, pyperclip, PySimpleGUI as sg
+import os, sys, shutil, PySimpleGUI as sg
 from common import *
 
 def_path = '/home/michael/Roms/genesis'
