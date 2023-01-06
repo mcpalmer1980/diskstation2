@@ -47,7 +47,7 @@ def finish(path, roms):
         [sg.Text('PS2 path:', size=12), sg.In(ps2path, key='path')],        
         [sg.Push()] + [sg.Button(b) for b in buttons]] 
 
-    window = sg.Window('Finish', layout)
+    window = sg.Window('Finish', layout, modal=True)
     button, values = window.read()
 
     if button not in buttons:
@@ -93,12 +93,14 @@ def get_path(default):
     return path or default
 
 def get_exts(path):
+    path = os.path.join(path, '')
     exts = {}
     for f in os.listdir(path):
-        n, x = os.path.splitext(f)
-        x = x or 'NONE'
-        c = exts.get(x, 0)
-        exts[x] = c+1
+        if os.path.isfile(path + f):
+            n, x = os.path.splitext(f)
+            x = x or 'NONE'
+            c = exts.get(x, 0)
+            exts[x] = c+1
 
     entries = sorted([f'{k:<6}({v})' for k, v in exts.items()])
     print(f'Extensions found: {", ".join(entries    )}')
@@ -106,7 +108,7 @@ def get_exts(path):
     layout = [[sg.Listbox(entries, size = (40, 8), key='list', enable_events=True)],
               [sg.Push(), sg.Button('Reset'), sg.Button('Invert'), sg.Button('Done')] ]
 
-    window = sg.Window("Select ROM Extensions", layout)
+    window = sg.Window("Select ROM Extensions", layout, modal=True)
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED:
@@ -182,7 +184,7 @@ def get_options():
             [ [sg.Checkbox(v, size=32, key=k, default=k in checked)] for k,v in options.items()],
             [sg.Push(), sg.Button('Done')] ]
     
-    window = sg.Window('Select filename options', layout)
+    window = sg.Window('Select filename options', layout, modal=True)
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED:
@@ -210,7 +212,7 @@ def filter_roms(roms):
     layout = [
         [sg.Listbox(items, size=(60, 10), key='list', select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
         [sg.Push(), sg.Button('Remove Unselected'), sg.Button('Remove Selected')] ]
-    window = sg.Window('Filter Roms', layout)
+    window = sg.Window('Filter Roms', layout, modal=True)
 
     while True:
         event, values = window.read()
@@ -248,7 +250,7 @@ def edit_long_names(roms, long, opts):
     layout = [
         [sg.Listbox(items, size=(60, 10), key='list', enable_events=True)],
         [sg.Push(), sg.Button('Done')] ]
-    window = sg.Window('Edit Long Filenames', layout)
+    window = sg.Window('Edit Long Filenames', layout, modal=True)
 
     while True:
         event, values = window.read()
@@ -263,9 +265,9 @@ def edit_long_names(roms, long, opts):
             if r:
                 k, l, s = r
                 x = os.path.splitext(k)[1]
-                name = sg.popup_get_text(l, 'Edit Name', s) + x
-                if name:
-                    fixed[k] = name
+                r = sg.popup_get_text(l, 'Edit Name', s) + x
+                if r:
+                    fixed[k] = r + x
                     long.pop(k)
                     items = [v[1] for v in long.values()]
                     window['list'].update(items, scroll_to_index=index-1)
@@ -281,6 +283,8 @@ def print_roms(roms, message=''):
     print(message)
     for k in roms:
         longest = max(longest, len(k))
+    print(f'\n{"Source":<longest+1}Dest:')
+    print('='*longest*1.5)
     for k, v in roms.items():
         print(f'{k:<{longest+1}}{v}')
     print('\n\n')

@@ -1,0 +1,25 @@
+::main::DriveStationGui
+tools1::format==Format HDD::create==Create Partition::roms==Install Roms
+tools2::theme==Change Theme
+format||Format HDD for your PS2 and create default partitions
+roms||Scan a folder for Roms, filter the list, and install them to your PS2 HDD
+theme||Change application theme and other options
+close==Close==Close this window
+?==Display the manual
+
+::themes::Theme Chooser
+tips==Show Tooltips
+change==Change
+cancel==Cancel
+
+::format::Format PS2 HDD
+pbuttons::remove==Remove::edit==Edit::add==Add
+buttons::cancel==Cancel::format==Format
+drive==Drive==Select drive to format
+partitions==Partitions==Set default partitions to create
+
+::editpart::Edit Partition
+buttons::cancel==Cancel::ok==Okay
+available==Available Space
+name==Name==Enter a unique partition name
+size==Size==Enter a partition size using M (megabyte) or G (gigabyte)

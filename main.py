@@ -1,35 +1,31 @@
-import os, sys, shutil, pyperclip, time
-import rom_prep
-from io import StringIO
-import PySimpleGUI as sg
+#!/bin/python
 from common import *
 
 def main_window(theme='DarkBlack1', size=16):
-    #set_tooltips(window, 'main')
-    #options = load_options()    
-    #tooltips = load_tooltips('README.md')
-    tools1 = ('Format HDD', 'Create Partition', 'Install Roms')
-    tools2 = ('Change Theme'),
+    print(sg.clipboard_get())
+    tt.set('main')
 
     theme = options.get('theme', theme)
-    print('starting', theme)
+    print('Setting theme:', theme)
+    sg.theme(theme)
     font = options.get('font', ('Arial', size))
     sg.set_options(font=font, tooltip_font=font, icon='icon.png')
-    sg.theme(theme)
-    layout = [[sg.Button(tool) for tool in tools1] + [
+    layout = [[sg.Button(tool) for tool in tt.tools1] + [
                     sg.Push(), sg.Button('?')],
-              [sg.Button(tool) for tool in tools2],
+              [sg.Button(tool) for tool in tt.tools2],
               [sg.Multiline(default_text=print.buffer.getvalue(),enable_events=False,
                     size=(120, 20), expand_x=True, expand_y=True, font=('mono', font[1]),
                     key="CONSOLE", write_only=True, disabled=True, autoscroll=True)],
-              [sg.Push(), sg.Button('Close')] ]
-    window = sg.Window('DriveStationGui', layout, font=options['font'],
-            enable_close_attempted_event=True, resizable=True, finalize=True)
+              [sg.Push(), sg.Button(tt.close)] ]
+    window = sg.Window('DriveStationGui', layout, enable_close_attempted_event=True,
+            resizable=True, finalize=True)
     returned_at = time.perf_counter() - 1
-    print.window = window
+    print.set_window(window)
 
     # Event Loop to process "events" and get the "values" of the inputs
     while True:
+        tt.set('main')
+        tt.set_tooltips(window)
         event, values = window.read()
 
         if event == sg.WIN_X_EVENT or event == 'Cancel':
@@ -38,13 +34,15 @@ def main_window(theme='DarkBlack1', size=16):
         else:
             if event == 'Clear':
                 print.buffer = StringIO()
-            elif event == "Change Theme":
-                r = theme_menu()
-                if r:
+            elif event == tt.theme:
+                reset = theme_menu()
+                if reset:
                     window.close()
                     main_window()
                     return
-            elif event == "Install Roms":
+            elif event == tt.format:
+                disks.format_HDD()
+            elif event == tt.roms:
                 rom_prep.main()
             else:
                 print(f'{event}: {values}')
@@ -58,38 +56,45 @@ def theme_menu(theme=False):
     else:
         print('Changing theme')    
 
+    tt.set('themes')
     layout = [[sg.Listbox(values=themes, size=(30,10), key='List',
                     enable_events=True)],
              [sg.Text('Size:'), sg.Slider(default_value=size, range=(6,24),
                     key='size', orientation='h')],
-             #[sg.Checkbox('Show Tooltips', default=options['tooltips'],
-             #       key='tooltips')],
-             [sg.Push(), sg.Button('Cancel'), sg.Button('Change')]]
+             [sg.Checkbox(tt.tips, default=options['tooltips'],
+                    key='tooltips')],
+             [sg.Push(), sg.Button(tt.cancel), sg.Button(tt.change)]]
  
-    window = sg.Window("Theme Chooser", layout, modal=True,
-            font=options['font'], finalize=True)
+    window = sg.Window("Theme Chooser", layout, modal=True, finalize=True)
+    tt.set_tooltips(window)
 
     if theme in themes:
         i = themes.index(theme)
         window['List'].update(set_to_index=[i], scroll_to_index=max(i-3, 0))
+    tooltips = options['tooltips']
+    changed = False
     while True:
         event, values = window.read()
-        if event == 'Change':
+        if event == tt.change:
             theme = values.get('List')
             new_size = int(values.get('size', size))
             options['font'] = (font, new_size)
-            #options['tooltips'] = values['tooltips']
+            options['tooltips'] = values['tooltips']
+            if options['tooltips'] != tooltips:
+                changed = True
             if new_size != size:
                 print(f'Size changed to {new_size}')
-                theme = options['theme']
+                changed = True
             if theme and theme[0] in themes:
                 theme = theme[0]
                 print(f'Theme changed to {theme}')
                 options['theme'] = theme
+                changed = True
             window.close()
-            return theme
+            return changed
               
-        elif event in (sg.WIN_CLOSED, 'Cancel'):
+        elif event in (sg.WIN_CLOSED, tt.cancel):
+            sg.theme(options['theme'])
             print('Canceled theme change')
             window.close()
             break
@@ -100,5 +105,11 @@ def theme_menu(theme=False):
             #return theme_menu(parent, theme)
     return
 
+
+
+
 if __name__ == '__main__':
+    tt.load('english')
+    load_options()
     main_window()
+    save_options()
