@@ -95,6 +95,22 @@ def edit_part(part, avail):
     window.close()
     return rvalue
 
+def processing_window(p):
+    def thread():
+        count = 0
+        layout = [
+            [sg.Text('Formatting PS2 HDD', size = 30)],
+            [sg.Text('.', key='dots')]]
+        window = sg.Window('Please Wait', layout, enable_close_attempted_event=True,
+                modal=True)
+
+        while p.poll() == None: 
+            window.read(timeout=250)
+            count += 1
+            dots = '.' * (count % 20 + 1)
+            window['dots'].update(dots)
+    Thread(target=thread, daemon=True).start()
+
 def format_drive(device, parts):
     PIPE = sp.PIPE
     cmd = os.path.join(root, 'pfsshell')
@@ -115,16 +131,16 @@ def format_drive(device, parts):
     window = sg.Window('Please Wait', layout, enable_close_attempted_event=True,
             modal=True)
     p = sp.Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-
+    processing_window(p)
+    
     while True:
         window.read(timeout=250)
         if inp:
             p.stdin.write(inp.encode())
-        count += 1
-        dots = '.' * (count % 20 + 1)
-        window['dots'].update(dots)
-        if p.poll() != None:
-            break
+            p.stdin.flush()
+            inp = False
+
+        print(p.stdout.readline().decode())
         
     stdout, stderr = p.communicate()
     print(stdout.decode())
@@ -185,3 +201,25 @@ def get_linux_drives():
         print(' ', i)
     return choices, info
 
+def get_ps2_parts(dev):
+    inp = f'device {dev}\nls\nexit\n'
+    outp = run_process(pfsshell, inp, sudo=True)
+    return [l[:-1] for l in outp if l.endswith('/')]
+
+def get_ps2_driveinfo(dev):
+    outp = run_process(f'{hdl_dump} toc {dev}', sudo=True, quiet=True)
+    parts = []; games = []
+    for l in outp[1:-1]:
+        cols = l.split(maxsplit=4)
+        if cols[-1].startswith('PP.HDL.'):
+            games.append((cols[-1][7:], cols[-2]))
+        else:
+            parts.append((cols[-1], cols[-2]))
+
+    s = outp[-1].replace(',', '').split()
+    total, used, avail = [i for i in s if i.endswith('MB')]
+    return dict(parts=parts, games=games, total=total, used=used, avail=avail)
+
+r = get_ps2_driveinfo('/dev/sda')
+for i in r:
+    print(i, r[i])

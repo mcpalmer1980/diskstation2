@@ -20539,7 +20539,7 @@ def popup_get_text(message, title=None, default_text='', password_char='', size=
 
     window = Window(title=title or message, layout=layout, icon=icon, auto_size_text=True, button_color=button_color, no_titlebar=no_titlebar,
                     background_color=background_color, grab_anywhere=grab_anywhere, keep_on_top=keep_on_top, location=location, relative_location=relative_location, finalize=True, modal=modal, font=font)
-
+    window['-INPUT-'].set_focus()
     button, values = window.read()
     window.close()
     del window

@@ -1,5 +1,6 @@
 import os, sys, shutil, time, random, pickle
 from io import StringIO
+from threading import Thread
 import PySimpleGUI as sg, subprocess as sp
 
 root = os.path.split(__file__)[0]
@@ -11,6 +12,7 @@ options = dict(
     font = ('Arial', 16),
     theme = random.choice(themes),
     tooltips = True,
+    history = []
 )
 
 platforms = {
@@ -18,6 +20,9 @@ platforms = {
     'windows': dict(dev='hdd0', part='ROMS')
 }
 platform = platforms.get(sys.platform, platforms['linux'])
+
+pfsshell = os.path.join(root, 'pfsshell')
+hdl_dump = os.path.join(root, 'hdl_dump_090')
 
 def load_options():
     opts = {}
@@ -29,9 +34,17 @@ def load_options():
         print('error loading config')
     options.update(opts)
     print(options)
-    load_options.options = options.copy()
+    
+    backup = options.copy()
+    for o in backup:
+        if type(backup[o]) == dict:
+            backup[o] = backup[o].copy()
+        elif type(backup[o]) == list:
+            backup[o] = backup[o][:]
+    load_options.options = backup
 
 def save_options():
+    print(options)
     if options == load_options.options:
         print('Options unchanged')
     else:
@@ -78,7 +91,8 @@ class Printer():
 
 class Lang():
     def __init__(self):
-        self.windows = {}
+        self._windows = {}
+        self._prev = None
         pass
     def load(self, fn):         
         fn = os.path.join(root, 'lang', fn)
@@ -91,13 +105,17 @@ class Lang():
                 tooltips = {}
                 window['title'] = title
                 window['tooltips'] = tooltips
-                self.windows[name] = window
+                self._windows[name] = window
             elif '::' in l:
-                tool, *tools = l.split('::')
-                window[tool] = [t.split('==')[1] for t in tools]
-                for t in tools:
-                    k, v = t.split('==')
-                    window[k] = v
+                try:                
+                    tool, *tools = l.split('::')
+                    window[tool] = [t.split('==')[1] for t in tools]
+                    window['d'+tool] = {t.split('==')[0]: t.split('==')[1] for t in tools}
+                    for t in tools:
+                        k, v = t.split('==')
+                        window[k] = v
+                except:
+                    print('Lang error in:', l)
             elif l.count('==') == 1:
                 name, text = l.split('==')
                 window[name] = text
@@ -111,9 +129,13 @@ class Lang():
                 tooltips[text] = tip
 
     def set(self, name):
-        window = self.windows.get(name, {})
+        window = self._windows.get(name, {})
+        self._name = name
+        self._name, self._prev = name, self._name
         for k, v in window.items():
             setattr(self, k, v)
+    def reset(self):
+        self.set(self._prev)
     def set_tooltips(self, window):
         if not options.get('tooltips', True):
             return
@@ -193,6 +215,116 @@ def unformat_size(s, _raise=False):
         print('error converting')
         return 0
     return size
-        
+
+def popup_get_folder(message='', title='', path='', history=None):
+    tt.set('getfolder')
+    browse_button = sg.FolderBrowse(tt.browse, initial_folder=path)
+    layout = [[]]
+    if message:
+        layout += [[sg.Text(message, auto_size_text=True)]]
+
+    if history:
+        last_entry = history[0]
+        layout += [[sg.Combo(history, default_value=last_entry, key='-INPUT-', bind_return_key=True),
+                    browse_button]]
+    else:
+        layout += [[sg.InputText(default_text=path, key='-INPUT-'), browse_button]]
+
+    layout += [[sg.Push(), sg.Button(tt.cancel, size=(6, 1)), sg.Button(tt.ok, size=(6, 1), bind_return_key=True)]]
+
+    window = sg.Window(title=title or tt.title, layout=layout, auto_size_text=True, modal=True)
+    val = None
+
+    while True:
+        event, values = window.read()
+        if event in (tt.cancel, sg.WIN_CLOSED):
+            break
+        elif event in (tt.ok, '-INPUT-'):
+            val = values['-INPUT-']
+            if os.path.exists(val):
+                if type(history) == list:
+                    if val in history:
+                        history.remove(val)
+                    history.insert(0, val)
+            else:
+                val = None
+            break
+
+    window.close()
+    return val
+
+def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
+    def input_thread(p):
+        def get_input():
+            while p.poll() == None:
+                l = p.stdout.readline().decode().strip()
+                if l:
+                    lines.append(l)
+                    if not quiet:
+                        print(l)
+        Thread(target=get_input, daemon=True).start()
+
+    if isinstance(cmd, str): 
+        cmd = cmd.split(' ')
+    else:
+        cmd = list(cmd)
+    if isinstance(inp, (list, tuple)):
+        inp = '\n'.join(inp)
+
+    if sudo and sys.platform == 'linux':
+        password = getattr(run_process, 'password', '')
+        if password:
+            cmd = ['sudo', '-kS', '-p', ""] + cmd
+        else:
+            for _ in range(3):
+                results = sg.popup_get_text('Enter your ROOT password',
+                    title='Validation', size=45, password_char='*')
+                if results:
+                    try:
+                        r = sp.run(('sudo', '-vkS'), capture_output=True,
+                                input=(results+'\n').encode(), timeout=1)
+                    except: continue
+                    if not r.returncode:
+                        password = results + '\n'
+                        run_process.password = password
+                        cmd = ['sudo', '-kS', '-p', ""] + cmd
+                        break
+            else:
+                sudo = False
+
+    if title:
+        layout = [
+            [sg.Text(message, key='message', size=60)],
+            [sg.Text('.', key='dots')]]
+        window = sg.Window(title, layout, enable_close_attempted_event=True,
+               finalize=True)
+
+    lines = []; count = 0
+    p = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT)
+    if sudo:
+        p.stdin.write(password.encode())
+        p.stdin.flush()
+
+    input_thread(p)
+    if inp:
+        print(inp)
+        if not inp.endswith('\n'):
+            inp += '\n'
+        p.stdin.write(inp.encode())
+        p.stdin.flush()
+
+    while p.poll() == None:
+        count += 1
+        if title:
+            window.read(timeout=250)
+            dots = '.' * (count % 20 + 1)
+            window['dots'].update(dots)
+        else:
+            if not quiet and not count % 3:
+                print('.', end='', flush=True)
+            time.sleep(.1)
+    if title: window.close()
+    return lines
+
 
 import rom_prep, disks

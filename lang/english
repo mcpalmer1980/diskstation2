@@ -1,3 +1,8 @@
+::getfolder::Select folder
+cancel==Cancel
+ok==Okay
+browse==Browse
+
 ::main::DriveStationGui
 tools1::format==Format HDD::create==Create Partition::roms==Install Roms
 tools2::theme==Change Theme
@@ -24,3 +29,25 @@ available==Available Space
 name==Name==Enter a unique partition name
 size==Size==Enter a partition size using M (megabyte) or G (gigabyte)
 notps2== ==Not a PS2 formated HDD.
+
+::filterexts::Filter File Extensions
+buttons::reset==Reset::invert==Invert::done==Done
+reset||Show all extensions in folder
+invert||Show hidden extensions and hide shown ones
+subfolders==Include Subfolders==Include files from all subfolders
+
+::fnoptions::Filename options
+boxes::..==Remove double periods::'==Remove apostrophes::,the==Remove ",the"::the==Remove all "the"s::?==Remove (?!#) symbols::max==Strip long filenames::word==Strip long filenames::edit==Edit long filenames
+maxlength==Max Length
+
+::filterfiles::Filter File List
+include==Include==Include files that are
+selected==Selected==Include only selected files
+unselected==Unselected==Included only unselected files
+all==All==Include all files
+
+::edlongfns::Edit Long Filenames
+done==Done
+
+
+
