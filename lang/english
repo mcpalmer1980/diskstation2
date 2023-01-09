@@ -62,3 +62,4 @@ buttons::copy==Copy Roms::rename==Rename Roms::install==Install Roms
 drive==PS2 Drive
 part==PS2 Partition
 path==PS2 Path
+folders==Select Folder

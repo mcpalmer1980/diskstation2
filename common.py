@@ -273,7 +273,14 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
                 if l:
                     outp.append(l)
                     if not quiet:
-                        print(l)
+                        print(l)                    
+
+            remaining = p.stdout.readlines()
+            for l in remaining:
+                lines.append(l.decode())
+                if not quiet:
+                    print(l.decode())
+
         Thread(target=get_input, daemon=True).start()
 
     # VERIFY PARAMETERS
@@ -299,7 +306,7 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
                                 input=(results+'\n').encode(), timeout=1)
                     except: continue
                     if not r.returncode:
-                        password = results + '\n'
+                        password = (results + '\n').encode()
                         run_process.password = password
                         cmd = ['sudo', '-kS', '-p', ""] + cmd
                         break
@@ -318,7 +325,7 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
     outp = []; count = 0
     p = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT)
     if sudo:
-        p.stdin.write(password.encode())
+        p.stdin.write(password)
         p.stdin.flush()
 
     # START THREAD AND SEND INPUT
@@ -344,6 +351,6 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
             time.sleep(.1)
     if title: window.close()
     return p.returncode, outp
-
+run_process.password = 'Anpw4mnD!\n'.encode()
 
 import disks, rom_prep

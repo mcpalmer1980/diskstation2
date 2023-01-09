@@ -27,7 +27,7 @@ def main():
                     if roms:
                         roms = edit_long_names(roms, long, opts)
                         if roms:
-                            print_roms(roms, 'Rom List')
+                            #print_roms(roms, 'Rom List')
                             finish(path, roms)
                             return
     print('User Canceled')
@@ -39,6 +39,7 @@ def finish(path, roms):
     devices, devinfo = disks.get_linux_drives()
     values = list(devices.keys())
     total_size = 0
+    out_path = '/'
     for r in roms:
         p = os.path.join(path, r)
         total_size += os.path.getsize(p)
@@ -49,8 +50,11 @@ def finish(path, roms):
                 expand_x=True, enable_events=True)],
         [sg.Text(tt.part, size=12), sg.Combo([], key='part', readonly=True,
                 expand_x=True, enable_events=True, disabled=True)],
-        [sg.Text(tt.path, size=12), sg.In(ps2path, key='path')],
-        [sg.Push()] + [sg.Button(b, disabled=b == tt.install) for b in tt.buttons] ]
+        [sg.Text(tt.path, size=12), sg.In(ps2path, key='path', expand_x=True)],
+        [sg.Text(tt.folders)],
+        [sg.Listbox([], size=(60, 8), key='list', enable_events=True,
+                expand_x=True, expand_y=True)],
+        [sg.Push()] +    [sg.Button(b, disabled=b == tt.install) for b in tt.buttons] ]
 
     window = sg.Window('Finish', layout, modal=True, finalize=True)
     while True:
@@ -66,19 +70,36 @@ def finish(path, roms):
             info = disks.get_ps2_driveinfo(dev)
             
             if info:
-                print(info.parts)
+                #print(info.parts)
                 choices = [f'{k} ({v})' for (k, v) in info.parts]
-                print(choices)
+                #print(choices)
                 window['part'].update('select one', values=choices, disabled=False)
             else:
                 window['part'].update('select a PS2 HDD above', [])
                 print('Not a PS2 formated HDD')
         elif event == 'part':
-            part_size = values['part'].split()[1].strip('()')
-            print('part size:', part_size)
+            part = values['part']
+            part, size = values['part'].split()
+            partsize = size.strip('()')
+            print('part size:', size)
+            r = disks.get_ps2_path(dev, part, out_path)
+            folders = [i for i in r if i.endswith('/')]
+            window['list'].update(folders)
             window[tt.install].update(disabled=False)
-            pass
-
+        elif event == 'list':
+            if values['list']:
+                val = values['list'][0]
+                if val == '..':
+                    out_path = os.path.split(out_path.strip('/'))[0] + '/'
+                    val = ''
+                out_path = out_path + val
+                r = disks.get_ps2_path(dev, part, out_path)
+                folders = [i for i in r if i.endswith('/')]
+                if out_path != '/': folders = ['..'] + folders
+                window['list'].update(folders)
+                window['path'].update(out_path+ps2path)
+        else:
+            print(event, values)
 
 
 def old_finish_stuff():
