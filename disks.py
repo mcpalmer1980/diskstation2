@@ -23,7 +23,7 @@ def format_HDD():
     tt.set_tooltips(window)
     while True:
         event, values = window.read()
-        total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
+        total_size = sum([size2int(v.split()[1].strip('()')) for v in pvalues])
         if event in (sg.WIN_CLOSED, tt.cancel):
             break
         elif event == tt.edit:
@@ -53,66 +53,53 @@ def format_HDD():
         elif event == 'drive':
             sel = values['drive']
             dev = choices[sel]
-            drive_size = unformat_size(drives[dev]['SIZE'])
+            drive_size = size2int(drives[dev]['SIZE'])
             
             pvalues = default_partitions[:]
-            total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
-            print(f'total {format_size(total_size)}, drive: {format_size(drive_size)}')
+            total_size = sum([size2int(v.split()[1].strip('()')) for v in pvalues])
+            print(f'total {size2str(total_size)}, drive: {size2str(drive_size)}')
             while total_size > drive_size:
                 pvalues.pop(-1)
-                total_size = sum([unformat_size(v.split()[1].strip('()')) for v in pvalues])
+                total_size = sum([size2int(v.split()[1].strip('()')) for v in pvalues])
             
             window['partitions'].update(pvalues)
             for b in tt.pbuttons:
                 window[b].update(disabled = False)
             window[tt.format].update(disabled=False)
-
     window.close()
 
 def edit_part(part, avail):
-    name, size = part.split()
-    size = unformat_size(size.strip('()'))
-    avail += size
-    size = format_size(size)
+    if part:
+        name, size = part.split()
+        size = size2int(size.strip('()'))
+        avail += size
+        size = size2str(size)
+    else:
+        name = ''
+        size = '1G'
+
     tt.set('editpart')
     layout = [
-        [sg.Text(tt.available, size=18), sg.Text(format_size(avail))],
+        [sg.Text(tt.available, size=18), sg.Text(size2str(avail))],
         [sg.Text(tt.name, size=18), sg.In(name, key='name')],
         [sg.Text(tt.size, size=18), sg.In(size, key='size')],
         [sg.Push()] + [sg.Button(b) for b in tt.buttons]]
     window = sg.Window(tt.title, layout, modal=True, finalize=True)
+    window['name'].set_focus()
     tt.set_tooltips(window)
     event, values = window.read()
     rvalue = None
     if event == tt.ok:
-        size = unformat_size(values['size'])
+        size = size2int(values['size'])
         name = values['name']
-        if size and size < avail:
-            print('new', name, size)
-            rvalue = f'{name} ({format_size(size)})'
+        if size and size < size2int(avail):
+            rvalue = f'{name} ({size2str(size)})'
         else:
             print(f"Illegal size entered ({values['size']})")
     window.close()
     return rvalue
 
-def processing_window(p):
-    def thread():
-        count = 0
-        layout = [
-            [sg.Text('Formatting PS2 HDD', size = 30)],
-            [sg.Text('.', key='dots')]]
-        window = sg.Window('Please Wait', layout, enable_close_attempted_event=True,
-                modal=True)
-
-        while p.poll() == None: 
-            window.read(timeout=250)
-            count += 1
-            dots = '.' * (count % 20 + 1)
-            window['dots'].update(dots)
-    Thread(target=thread, daemon=True).start()
-
 def format_drive(device, parts):
-    PIPE = sp.PIPE
     cmd = os.path.join(root, 'pfsshell')
     inp  = f'device {device}\n'
     inp += f'initialize yes\n'
@@ -124,54 +111,8 @@ def format_drive(device, parts):
     inp += 'exit\n'
     print('\nRunning command', cmd)
 
-    count = 0
-    layout = [
-        [sg.Text('Formatting PS2 HDD', size = 30)],
-        [sg.Text('.', key='dots')]]
-    window = sg.Window('Please Wait', layout, enable_close_attempted_event=True,
-            modal=True)
-    p = sp.Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    processing_window(p)
-    
-    while True:
-        window.read(timeout=250)
-        if inp:
-            p.stdin.write(inp.encode())
-            p.stdin.flush()
-            inp = False
-
-        print(p.stdout.readline().decode())
-        
-    stdout, stderr = p.communicate()
-    print(stdout.decode())
-    if p.returncode:
-        print(stderr.decode())
-    print(f'Return value:', p.returncode)
-    window.close()
-
-
-
-class DriveInfo():
-    def __init__(self, device, text):
-        self.device = device
-        lines = text.split('\n')
-        _, size, _, used, _, avail = lines[-1].replace(',','').split()
-        self.size = size
-        self.used = used
-        self.avail = avail
-        self.games = []
-        self.parts = []
-    def __repr__(self):
-        return f'PS2 HDD {self.device} {self.size}'
-
-def get_drive_info(device):
-    PIPE = sp.PIPE
-    cmd = os.path.join(root, 'hdl_dump_090')
-    r = sp.getoutput(f'{cmd} hdl_toc {device}')
-    if r.endswith('aborting.'):
-        print(tt.notps2)
-        return None
-    return DriveInfo(device, r)
+    run_process(cmd, inp, 'Formating Drive', True,
+            'Please wait while your drive is formated for the PS2')
 
 def get_linux_drives():
     print('Scanning for Linux drives')
@@ -195,31 +136,122 @@ def get_linux_drives():
                 ], key=lambda x: x.lower())
         rem = 'Internal' if inf['RM'] == '0' else 'Removable'
         contents = ", ".join(_parts) if _parts else 'empty'
-        key = f'{inf["LABEL"]} - {inf["SIZE"]} ({contents}) {rem}'
+        key = f'{inf["LABEL"]} - {inf["SIZE"]} ({contents})' # {rem}'
         choices[key] = d
     for i in choices.values():
         print(' ', i)
     return choices, info
 
-def get_ps2_parts(dev):
-    inp = f'device {dev}\nls\nexit\n'
-    outp = run_process(pfsshell, inp, sudo=True)
-    return [l[:-1] for l in outp if l.endswith('/')]
+class PS2DriveInfo:
+    __slots__ = ('parts games total used avail'.split())
+    def __init__(self, *params):
+        for z in zip(self.__slots__, params):
+            s, p = z
+            self.__setattr__(s, p)
+    def __str__(self):
+        return '\n'.join([
+            self.__repr__(),
+            f" Partitions: {', '.join([f'{n}({s})' for n, s in self.parts])}",
+            f" PS2 Games: {', '.join([f'{n}({s})' for n, s in self.games])}"])
+    def __repr__(self):
+        return f"PS2HDD: ({self.total}, {len(self.games)} games, {self.avail} available)"
 
 def get_ps2_driveinfo(dev):
-    outp = run_process(f'{hdl_dump} toc {dev}', sudo=True, quiet=True)
+    print(f'Getting PS2 Drive Info ({dev})')
+    err, outp = run_process(f'{hdl_dump} toc {dev}', sudo=True, quiet=True)
+    if err: return
     parts = []; games = []
     for l in outp[1:-1]:
         cols = l.split(maxsplit=4)
         if cols[-1].startswith('PP.HDL.'):
-            games.append((cols[-1][7:], cols[-2]))
+            games.append((cols[-1][7:], size2str(cols[-2])))
         else:
-            parts.append((cols[-1], cols[-2]))
+            parts.append((cols[-1], size2str(cols[-2])))
 
     s = outp[-1].replace(',', '').split()
-    total, used, avail = [i for i in s if i.endswith('MB')]
-    return dict(parts=parts, games=games, total=total, used=used, avail=avail)
+    total, used, avail = [size2str(i) for i in s if i.endswith('MB')]
+    return PS2DriveInfo(parts, games, total, used, avail)
 
-r = get_ps2_driveinfo('/dev/sda')
-for i in r:
-    print(i, r[i])
+def partition_editor():
+    def update(info):
+        if info:
+            window['driveinfo'].update(tt.info.format(info.total, info.used, info.avail))
+            items = info.parts if boxes[tt.parts] else []
+            items = items + info.games if boxes[tt.games] else items
+
+            items = sorted([f'{d} ({s})' for d, s in items], key=nocase)
+            window['list'].update(items)
+            window[tt.remove].update(disabled=False)
+            window[tt.add].update(disabled=False)
+
+        else:
+            items = []
+            window['driveinfo'].update('Not a PS2 formated drive')
+            window['list'].update([])
+            window[tt.remove].update(disabled=True)
+            window[tt.add].update(disabled=True)
+        return items
+
+    tt.set('partedit')
+    choices, drives = get_linux_drives()
+    values = list(choices.keys())
+    info = None
+
+    layout = [
+        [sg.Text('Drive:', size=8),
+            sg.Combo(values, readonly=True, key='drive', expand_x=True,
+                enable_events=True)],
+        [sg.Push(), sg.Text('', key='driveinfo')],
+        [sg.Text(tt.partitions)],
+        [sg.Listbox(['Select a drive above'], size=(60, 10), key='list', expand_x=True, expand_y=True)],
+        [[sg.Checkbox(b, True, key=b, enable_events=True) for b in tt.boxes]],
+        [sg.Push()] + [sg.Button(b, disabled=True) for b in tt.buttons]]
+    window = sg.Window(tt.title, layout, modal=True, finalize=True)
+    boxes = {b: True for b in tt.boxes}
+    tt.set_tooltips(window)
+
+    while True:
+        event, values = window.read()
+        if event in (sg.WIN_CLOSED,):
+            break
+        elif event in tt.boxes:
+            boxes = {b: values[b] for b in tt.boxes}
+            update(info)
+        elif event == 'drive':
+            sel = values['drive']
+            dev = choices[sel]
+            info = get_ps2_driveinfo(dev)
+            items = update(info)
+        elif event == tt.remove:
+            sel = values['list'][0].rsplit(maxsplit=1)[0]
+            if sg.popup_yes_no(f'Remove "{sel}" partition from {dev}?', title='Confirm') == 'Yes':
+                if sel in [i[0] for i in info.games]:
+                    sel = 'PP.HDL.' + sel
+                remove_partition(dev, sel)
+                info = get_ps2_driveinfo(dev)
+                items = update(info)
+        elif event == tt.add:
+            avail = size2str(info.avail)
+            part = edit_part(None, avail)
+            name = part.split()[0]
+            if part:                
+                if name in [i.split()[0] for i in items]:
+                    print(f'Partition "{name}" already exists')
+                else:
+                    create_partition(dev, part)
+                    info = get_ps2_driveinfo(dev)
+                    items = update(info)
+
+def create_partition(dev, part):
+    print(f'Creating "{part}" partition on "{dev}"')
+    name, size = part.split()
+    size = size2str(size.strip('()'))
+    cmd = pfsshell
+    inp = f'device {dev}\nmkpart {name} {size} PFS\nexit\n'
+    run_process(cmd, inp, sudo=True, quiet=True)
+
+def remove_partition(dev, part):
+    print(f'Removing "{part}" partition from "{dev}"')
+    cmd = pfsshell
+    inp = f'device {dev}\nrmpart {part}\nexit\n'
+    run_process(cmd, inp, sudo=True, quiet=True)

@@ -1,4 +1,3 @@
-import os, sys, shutil, PySimpleGUI as sg
 from common import *
 
 def_path = '/home/michael/Roms/genesis'
@@ -34,9 +33,60 @@ def main():
     print('User Canceled')
 
 def finish(path, roms):
+    tt.set('finishroms')
     count = len(roms)
-    buttons=('Neither', 'Copy', 'Rename')
     ps2path = path.split(os.sep)[-1]
+    devices, devinfo = disks.get_linux_drives()
+    values = list(devices.keys())
+    total_size = 0
+    for r in roms:
+        p = os.path.join(path, r)
+        total_size += os.path.getsize(p)
+    print('total size:', total_size)
+
+    layout = [
+        [sg.Text(tt.drive, size=12), sg.Combo(values, 'select one', key='drive', readonly=True,
+                expand_x=True, enable_events=True)],
+        [sg.Text(tt.part, size=12), sg.Combo([], key='part', readonly=True,
+                expand_x=True, enable_events=True, disabled=True)],
+        [sg.Text(tt.path, size=12), sg.In(ps2path, key='path')],
+        [sg.Push()] + [sg.Button(b, disabled=b == tt.install) for b in tt.buttons] ]
+
+    window = sg.Window('Finish', layout, modal=True, finalize=True)
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED:
+            break
+
+        elif event == 'drive':
+            window[tt.install].update(disabled=True)
+            sel = values['drive']
+            dev = devices[sel]
+            drive_size = size2int(devinfo[dev]['SIZE'])
+            info = disks.get_ps2_driveinfo(dev)
+            
+            if info:
+                print(info.parts)
+                choices = [f'{k} ({v})' for (k, v) in info.parts]
+                print(choices)
+                window['part'].update('select one', values=choices, disabled=False)
+            else:
+                window['part'].update('select a PS2 HDD above', [])
+                print('Not a PS2 formated HDD')
+        elif event == 'part':
+            part_size = values['part'].split()[1].strip('()')
+            print('part size:', part_size)
+            window[tt.install].update(disabled=False)
+            pass
+
+
+
+def old_finish_stuff():
+    tt.set('finishroms')
+    count = len(roms)
+    ps2path = path.split(os.sep)[-1]
+    devices, devinfo = get_linux_drives()
+    buttons=('Neither', 'Copy', 'Rename')
 
     layout = [
         [sg.Text(f'You have {count} roms selected from {path}.')],
@@ -46,10 +96,8 @@ def finish(path, roms):
         [sg.Text('PS2 partition:', size=12), sg.In(platform['part'], key='part')],
         [sg.Text('PS2 path:', size=12), sg.In(ps2path, key='path')],        
         [sg.Push()] + [sg.Button(b) for b in buttons]] 
-
-    window = sg.Window('Finish', layout, modal=True)
-    button, values = window.read()
-
+    
+    
     if button not in buttons:
         return
     if button == 'Rename':
@@ -217,10 +265,11 @@ def filter_files(files):
     items = sorted(files.values(), key=lambda x: x.lower())
     layout = [
         [sg.Listbox(items, size=(60, 10), key='list', select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
-        [sg.Push(), sg.Text(tt.include), sg.Button(tt.unselected),
-            sg.Button(tt.selected), sg.Button(tt.all)] ]
-    window = sg.Window(tt.title, layout, modal=True)
-
+        [sg.Push(), sg.Text(tt.include), sg.Button(tt.selected), sg.Button(tt.unselected),
+                sg.Button(tt.all)] ]
+    window = sg.Window(tt.title, layout, modal=True, finalize=True)
+    selected = items[0]
+    
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED:
@@ -237,11 +286,6 @@ def filter_files(files):
             if selected:
                 r = {k: v for k, v in files.items() if v in selected}
                 break
-        elif event == 'list':
-            selected = values['list'][0]
-            index = items.index(selected)
-            items.remove(selected)
-            window['list'].update(items, scroll_to_index=index-2)
 
     window.close()
     return r

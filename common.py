@@ -144,8 +144,10 @@ class Lang():
         for e in window.key_dict:
             a = getattr(self, e, None) if type(e) == str else None
             if e in tips:
-                window[e].set_tooltip(tips[e])
-                found.append(e)
+                try:
+                    window[e].set_tooltip(tips[e])
+                    found.append(e)
+                except: print(f'tooltip error: {e}')
             elif a and a in tips:
                 window[e].set_tooltip(tips[a])
                 found.append(a)
@@ -166,7 +168,16 @@ def _globals():
     tt = _globals.tt
 _globals()
 
-def format_size(b, digits=1):
+def size2str(s, digits=1):
+    if isinstance(s, str):
+        return encode_size_str(decode_size_str(s), digits)
+    return encode_size_str(s, digits)
+def size2int(s):
+    if isinstance(s, str):
+        return decode_size_str(s)
+    return s
+
+def encode_size_str(b, digits=1):
     frmt = f'0.{digits}f'
     if b < 1000:
         s = f'{b:{frmt}}B'
@@ -176,11 +187,11 @@ def format_size(b, digits=1):
         s = f'{b/1024**2:{frmt}}M'
     elif 1024**3 <= b < 1024**4:
         s = f'{b/1024**3:{frmt}}G'
-    elif 1024**5 <= b:
+    else:
         s = f'{b/1024**4:{frmt}}T'
     return s.replace('.0', '')
 
-def unformat_size(s, _raise=False):
+def decode_size_str(s, _raise=False):
     multi = 1
     size = s
     if s[-1:].lower() == 't':
@@ -254,16 +265,18 @@ def popup_get_folder(message='', title='', path='', history=None):
     return val
 
 def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
+    # THREAD HANDLER
     def input_thread(p):
         def get_input():
             while p.poll() == None:
                 l = p.stdout.readline().decode().strip()
                 if l:
-                    lines.append(l)
+                    outp.append(l)
                     if not quiet:
                         print(l)
         Thread(target=get_input, daemon=True).start()
 
+    # VERIFY PARAMETERS
     if isinstance(cmd, str): 
         cmd = cmd.split(' ')
     else:
@@ -271,6 +284,7 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
     if isinstance(inp, (list, tuple)):
         inp = '\n'.join(inp)
 
+    # GET AND VERIFY LINUX SUDO PASSWORD
     if sudo and sys.platform == 'linux':
         password = getattr(run_process, 'password', '')
         if password:
@@ -292,6 +306,7 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
             else:
                 sudo = False
 
+    # PREPARE PROGRESS WINDOW
     if title:
         layout = [
             [sg.Text(message, key='message', size=60)],
@@ -299,20 +314,24 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
         window = sg.Window(title, layout, enable_close_attempted_event=True,
                finalize=True)
 
-    lines = []; count = 0
+    # OPEN PROCESS AND SEND PASSWORD
+    outp = []; count = 0
     p = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT)
     if sudo:
         p.stdin.write(password.encode())
         p.stdin.flush()
 
+    # START THREAD AND SEND INPUT
     input_thread(p)
     if inp:
-        print(inp)
+        if not quiet:
+            print(inp)
         if not inp.endswith('\n'):
             inp += '\n'
         p.stdin.write(inp.encode())
         p.stdin.flush()
 
+    # UPDATE DISPLAY AND AWAIT PROCESS TERMINATION
     while p.poll() == None:
         count += 1
         if title:
@@ -324,7 +343,7 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
                 print('.', end='', flush=True)
             time.sleep(.1)
     if title: window.close()
-    return lines
+    return p.returncode, outp
 
 
-import rom_prep, disks
+import disks, rom_prep

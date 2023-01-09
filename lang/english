@@ -4,7 +4,7 @@ ok==Okay
 browse==Browse
 
 ::main::DriveStationGui
-tools1::format==Format HDD::create==Create Partition::roms==Install Roms
+tools1::format==Format HDD::partitions==Partitions::roms==Install Roms
 tools2::theme==Change Theme
 format||Format HDD for your PS2 and create default partitions
 roms||Scan a folder for Roms, filter the list, and install them to your PS2 HDD
@@ -49,5 +49,16 @@ all==All==Include all files
 ::edlongfns::Edit Long Filenames
 done==Done
 
+::partedit::Add or Remove Partitions
+buttons::remove==Remove::add==Create
+boxes::parts==Show Partitions::games==Show PS2 Games
+remove||Remove the selected partition
+add||Create a new partition
+partition==Partitions
+info==Total: {}, Used: {}, Free: {}
 
-
+::finishroms::Install or Copy Roms
+buttons::copy==Copy Roms::rename==Rename Roms::install==Install Roms
+drive==PS2 Drive
+part==PS2 Partition
+path==PS2 Path

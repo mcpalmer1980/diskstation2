@@ -41,6 +41,8 @@ def main_window(theme='DarkBlack1', size=16):
                     return
             elif event == tt.format:
                 disks.format_HDD()
+            elif event == tt.partitions:
+                disks.partition_editor()
             elif event == tt.roms:
                 rom_prep.main()
             else:

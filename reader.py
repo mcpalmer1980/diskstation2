@@ -3,6 +3,18 @@ import sys, os, time, subprocess as sp
 import PySimpleGUI as sg
 
 
+class PS2DriveInfo:
+    __slots__ = ('parts games total used avail'.split())
+    def __init__(self, *params):
+        for z in zip(self.__slots__, params):
+            s, p = z
+            print(s, p)
+            self.__setattr__(s, p)
+    def __repr__(self):
+        return f'PS2HDD: {self.total}, {len(self.games)} games, {self.avail} available'
+
+
+
 
 def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
     def input_thread(p):
@@ -102,6 +114,11 @@ def get_ps2_driveinfo(dev):
     s = outp[-1].replace(',', '').split()
     total, used, avail = [i for i in s if i.endswith('MB')]
     return dict(parts=parts, games=games, total=total, used=used, avail=avail)
+
+d = PS2DriveInfo(('OPL', 'ROMS'), ('TMNT', 'Mario', 'LoliRape'), '200G', '50G', '150G')
+print(d)
+exit()
+
 
 r = get_ps2_driveinfo('/dev/sda')
 for i in r:
