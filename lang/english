@@ -4,10 +4,15 @@ ok==Okay
 browse==Browse
 
 ::main::DriveStationGui
-tools1::format==Format HDD::partitions==Partitions::roms==Install Roms
+tools1::format==Format HDD::partitions==Partitions::install==Install Games::roms==Install Files::remove==Remove Files::convbin==Convert BIN::convvcd==Convert VCD
 tools2::theme==Change Theme
-format||Format HDD for your PS2 and create default partitions
-roms||Scan a folder for Roms, filter the list, and install them to your PS2 HDD
+format||Format a HDD for your PS2 and create default partitions
+partitions||Create and remove partitions from a PS2 formated HDD
+roms||Scan a folder for Roms or other files to install onto a PS2 formated HDD
+install||Install PS2 games onto a PS2 formated HDD
+remove||Remove PS2 games, roms or other files from a PS2 formated HDD
+convbin||Convert PS2 games from  BIN to ISO format required for installation
+convvcd||Convert PS1 games from BIN/ISO to VCD format required for installation
 theme||Change application theme and other options
 close==Close==Close this window
 ?==Display the manual

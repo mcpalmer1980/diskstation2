@@ -227,7 +227,7 @@ def decode_size_str(s, _raise=False):
         return 0
     return size
 
-def popup_get_folder(message='', title='', path='', history=None):
+def popup_get_folder(message='', title='', path='', history=None, allow_new=True):
     tt.set('getfolder')
     browse_button = sg.FolderBrowse(tt.browse, initial_folder=path)
     layout = [[]]
@@ -257,6 +257,8 @@ def popup_get_folder(message='', title='', path='', history=None):
                     if val in history:
                         history.remove(val)
                     history.insert(0, val)
+            elif allow_new and os.path.isdir(os.path.split(os.path.normpath(val))[0]):
+                os.makedirs(val)
             else:
                 val = None
             break
@@ -277,9 +279,9 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
 
             remaining = p.stdout.readlines()
             for l in remaining:
-                lines.append(l.decode())
+                outp.append(l.decode().strip())
                 if not quiet:
-                    print(l.decode())
+                    print(l.decode().strip())
 
         Thread(target=get_input, daemon=True).start()
 
@@ -350,7 +352,10 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
                 print('.', end='', flush=True)
             time.sleep(.1)
     if title: window.close()
+    if quiet and p.returncode:
+        for l in outp:
+            print(l)
     return p.returncode, outp
 run_process.password = 'Anpw4mnD!\n'.encode()
 
-import disks, rom_prep
+import disks, games

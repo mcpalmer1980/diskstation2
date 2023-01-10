@@ -281,9 +281,7 @@ def make_ps2_path(dev, part, path):
     for i in range(len(subs)):
         inp += f"mkdir {'/'.join(subs[:i+1])}\n"
     inp += 'exit\n'
-
-    print(inp)
-    #run_process(pfsshell, inp, sudo=True, quiet=True)
+    run_process(pfsshell, inp, sudo=True, quiet=True)
 
 def remove_partition(dev, part):
     print(f'Removing "{part}" partition from "{dev}"')
@@ -293,23 +291,24 @@ def remove_partition(dev, part):
 
 def remove_ps2_path(dev, part, path):
     print(f'removing "{path}" from {part} on {dev}')
-    files, folders = walk_ps2_path(dev, part, path, True)
+    files, folders = walk_ps2_path(dev, part, path, True, quiet=True)
     inp = f'device {dev}\nmount {part}\n'
     for f in files:
-        inp += f'rm {f}\n'
+        inp += f'rm "{f}"\n'
     for f in reversed(folders):
-        inp += f'rmdir {f}\n'
+        inp += f'rmdir "{f}"\n'
 
     if path == '/':
         inp += f'exit\n'
     else:
-        inp += f'rmdir {path}\nexit\n'
+        inp += f'rmdir "{path}"\nexit\n'
     run_process(pfsshell, inp, sudo=True, quiet=True)
 
-def walk_ps2_path(dev, part, path='/', separate=False, _deep=False):
+def walk_ps2_path(dev, part, path='/', separate=False, _deep=False, quiet=False):
     if not _deep:
         path = path if path.endswith('/') else path+'/'
-        print(f'walking "{path}" in {part} on {dev}')
+        if not quiet:
+            print(f'walking "{path}" in {part} on {dev}')
     sep = os.sep
     files = get_ps2_path(dev, part, path, True)
     more = []

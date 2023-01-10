@@ -44,15 +44,75 @@ def main_window(theme='DarkBlack1', size=16):
             elif event == tt.partitions:
                 disks.partition_menu()
             elif event == tt.roms:
-                rom_prep.main()
+                games.install_roms()
             else:
                 print(f'{event}: {values}')
             returned_at = time.perf_counter()
     window.close()
 
 
+def theme_menu(theme=False):
+    font, size = options['font']
+    if theme:
+        sg.theme(theme)
+    else:
+        print('Changing theme')    
+
+    tt.set('themes')
+    layout = [[sg.Listbox(values=themes, size=(30,10), key='List',
+                    enable_events=True)],
+             [sg.Text('Size:'), sg.Slider(default_value=size, range=(6,24),
+                    key='size', orientation='h')],
+             [sg.Checkbox(tt.tips, default=options['tooltips'],
+                    key='tooltips')],
+             [sg.Push(), sg.Button(tt.cancel), sg.Button(tt.change)]]
+ 
+    window = sg.Window("Theme Chooser", layout, modal=True, finalize=True)
+    tt.set_tooltips(window)
+
+    if theme in themes:
+        i = themes.index(theme)
+        window['List'].update(set_to_index=[i], scroll_to_index=max(i-3, 0))
+    tooltips = options['tooltips']
+    changed = False
+    while True:
+        event, values = window.read()
+        if event == tt.change:
+            theme = values.get('List')
+            new_size = int(values.get('size', size))
+            options['font'] = (font, new_size)
+            options['tooltips'] = values['tooltips']
+            if options['tooltips'] != tooltips:
+                changed = True
+            if new_size != size:
+                print(f'Size changed to {new_size}')
+                changed = True
+            if theme and theme[0] in themes:
+                theme = theme[0]
+                print(f'Theme changed to {theme}')
+                options['theme'] = theme
+                changed = True
+            window.close()
+            return changed
+              
+        elif event in (sg.WIN_CLOSED, tt.cancel):
+            sg.theme(options['theme'])
+            print('Canceled theme change')
+            window.close()
+            break
+        elif event == 'List':
+            theme = values['List'][0]
+            window.close()            
+            return theme_menu(theme)
+    return
+
 if __name__ == '__main__':
     tt.load('english')
+    games.scan_for_games('/media/easystore/PS2SMB/DVD')
+
+    exit()
+
+
     load_options()
     main_window()
     save_options()
