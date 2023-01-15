@@ -325,9 +325,10 @@ def remove_ps2_path(dev, part, path):
     run_process(pfsshell, inp, sudo=True, quiet=True)
 
 def remove_ps2_files(dev, part, files):
+    print(f'removing {len(files)} files from {part} on {dev}')
     inp = f'device {dev}\nmount {part}\n'
-    inp += '\n'.join([f'rm {f}' for f in files]) + '\nexit\n'
-    print(inp)
+    inp += '\n'.join([f'rm "{f}"' for f in files]) + '\nexit\n'
+    run_process(pfsshell, inp, sudo=True, quiet=False   )
 
 def walk_ps2_path(dev, part, path='/', separate=False, _deep=False, quiet=False):
     if not _deep:
@@ -355,10 +356,10 @@ def remove_window():
     def update_games(path):
         pass
     def update_buttons():
-        sel = values.get('list', [])
-        items = window['list'].get_list_values()
+        sel = window['list'].get()
+        items = [i for i in window['list'].get_list_values() if not i.endswith('/')]
         window[tt.selected].update(disabled=not bool(sel))
-        window[tt.unselected].update(disabled=len(sel) == len(items))
+        window[tt.unselected].update(disabled=len(sel) == len(items)-1)
         if items and part != None:
             window[tt.all].update(disabled=False)
         else:
@@ -368,6 +369,7 @@ def remove_window():
     choices, drives = get_linux_drives()
     drivelist = list(choices.keys())
     values = {}
+    info = {}
     dev = path = part = None
     
     history = options['game_folders']
@@ -385,7 +387,7 @@ def remove_window():
         [sg.Push(), sg.Text('', key='driveinfo')],
         [sg.Text(tt.list)],
         [sg.Listbox(filelist, size=(60, 10), key='list', expand_x=True, expand_y=True,
-                enable_events=True, select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED)],
+                enable_events=True, select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
         [sg.Checkbox(tt.confirm, key='confirm'), sg.Push(), sg.Text(tt.remove)] + [sg.Button(b, disabled=True) for b in tt.buttons]]
     window = sg.Window(tt.title, layout, modal=True, finalize=True)
     update_buttons()
@@ -413,16 +415,15 @@ def remove_window():
             update_buttons()
         elif event == 'list':
             sel = values['list'][-1] if values['list'] else None
+            vals =  values['list'] if sel else []
             if info and part == None:
+                window['list'].update(['scanning...'])
                 path = '/'
                 part = sel
                 filelist = ['..'] + get_ps2_path(dev, part, path)
                 window['list'].update(filelist)
-            elif sel and sel.endswith('/'):
-                path += sel
-                filelist = ['..'] + get_ps2_path(dev, part, path)
-                window['list'].update(filelist)
-            elif sel == '..':
+            elif '..' in vals:
+                window['list'].update(['scanning...'])
                 path = os.path.split(path.rstrip('/'))[0]
                 print(path)
                 if path:
@@ -431,15 +432,32 @@ def remove_window():
                     part = None
                     filelist = [p[0] for p in info.parts]
                 window['list'].update(filelist)
+            elif sel and sel.endswith('/'):
+                path += sel
+                window['list'].update(['scanning...'])
+                filelist = ['..'] + get_ps2_path(dev, part, path)
+                window['list'].update(filelist)
             update_buttons()
-        elif event == tt.all:
-            pass
         elif event == tt.selected:
             if confirm or sg.popup_ok_cancel(tt.rmsel, title=tt.confirm) == 'OK':
                 files = [path+f for f in values['list'] if f != '..']
+                window['list'].update(['Please wait...'])
                 remove_ps2_files(dev, part, files)
+                filelist = ['..'] + get_ps2_path(dev, part, path)
+                window['list'].update(filelist)
         elif event == tt.unselected:
             if confirm or sg.popup_ok_cancel(tt.rmunsel, title=tt.confirm) == 'OK':
                 files = [path+f for f in filelist
                         if f not in values['list'] and  f != '..']
+                window['list'].update(['Please wait...'])
                 remove_ps2_files(dev, part, files)
+                filelist = ['..'] + get_ps2_path(dev, part, path)
+                window['list'].update(filelist)
+        elif event == tt.all:
+            if sg.popup_ok_cancel(tt.rmall.format(path), title=tt.confirm) == 'OK':
+                window['list'].update(['Please wait...'])
+                remove_ps2_path(dev, part, path)
+                path = os.path.split(path.rstrip('/'))[0]
+                filelist = ['..'] + get_ps2_path(dev, part, path)
+                window['list'].update(filelist)
+

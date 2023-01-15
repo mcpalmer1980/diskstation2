@@ -154,6 +154,16 @@ def scan_for_games(path):
     return games
 
 def finish(path, roms):
+    def _rename(roms, path, reverse=False):
+        path = path.rstrip(os.sep) + os.sep
+        if reverse:
+            for fn, n in roms.items():
+                if fn != n:
+                    os.rename(path+n, path+fn)
+        else:
+            for fn, n in roms.items():
+                if fn != n:
+                    os.rename(path+fn, path+n)
     tt.set('finishroms')
     count = len(roms)
     ps2path = path.split(os.sep)[-1]
@@ -162,6 +172,7 @@ def finish(path, roms):
     total_size = 0
     dev = part = None
     out_path = '/'
+    files = target = None
     for r in roms:
         p = os.path.join(path, r)
         total_size += os.path.getsize(p)
@@ -245,21 +256,29 @@ def finish(path, roms):
                 shutil.copy(
                     os.path.join(path, k),
                     os.path.join(target, v) )
-            files = roms.values()
             window[tt.rename].update(disabled=True)
             window[tt.copy].update(disabled=True)
             save_script(dev, part, values['path'], files, target)
         elif event == tt.install:
-            target = path
-            files = roms.values()
-            window[tt.install].update(disabled=True)
+            if files:
+                rename = False
+            else:
+                rename = True
+                target = path
+                files = roms.values()
+                _rename(roms, path)
+            for b in tt.buttons:
+                window[b].update(disabled=True)
             outpath = values['path']
             disks.make_ps2_path(dev, part, outpath)
             outp = f'device {dev}\nmount {part}\ncd {outpath}\nlcd {target}\n'
             for f in files:
                 outp += f'put "{f}"\n'
             outp += 'exit\n'
+            print(outp)
             run_process(pfsshell, outp, "Copying Files", quiet=True, sudo=True)
+            if rename:
+                _rename(roms, path, True)
         else:
             print(event, values)
 
@@ -451,8 +470,6 @@ def edit_long_names(roms, long, opts):
         for k, v in long.items():
             if term in v:
                 return k, *v
-
-    print('long:', long)
 
     if not opts.get('edit', False) or not opts.get('max', False) or not long:
         return roms

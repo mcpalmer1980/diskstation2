@@ -92,4 +92,4 @@ remove==Remove
 confirm==Confirm
 rmsel==Remove all selected files from your PS2 HDD?
 rmunsel==Remove all non-selected files shown from your PS2 HDD?
-rmall==Remove all files from {} and all subfolders?
+rmall==Remove all files from {} and its subfolders?
