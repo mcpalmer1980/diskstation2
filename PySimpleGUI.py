@@ -505,7 +505,7 @@ USE_TTK_BUTTONS = None
 DEFAULT_PROGRESS_BAR_COLOR = ("#01826B", '#D0D0D0')  # a nice green progress bar
 DEFAULT_PROGRESS_BAR_COMPUTE = ('#000000', '#000000')  # Means that the progress bar colors should be computed from other colors
 DEFAULT_PROGRESS_BAR_COLOR_OFFICIAL = ("#01826B", '#D0D0D0')  # a nice green progress bar
-DEFAULT_PROGRESS_BAR_SIZE = (20, 20)  # Size of Progress Bar (characters for length, pixels for width)
+DEFAULT_PROGRESS_BAR_SIZE = (40, 20)  # Size of Progress Bar (characters for length, pixels for width)
 DEFAULT_PROGRESS_BAR_BORDER_WIDTH = 1
 DEFAULT_PROGRESS_BAR_RELIEF = RELIEF_GROOVE
 # PROGRESS_BAR_STYLES = ('default', 'winnative', 'clam', 'alt', 'classic', 'vista', 'xpnative')
@@ -17051,7 +17051,7 @@ class QuickMeter(object):
     active_meters = {}
     exit_reasons = {}
 
-    def __init__(self, title, current_value, max_value, key, *args, orientation='v', bar_color=(None, None), button_color=(None, None),
+    def __init__(self, title, current_value, max_value, key, *args, orientation='h', bar_color=(None, None), button_color=(None, None), 
                  size=DEFAULT_PROGRESS_BAR_SIZE, border_width=None, grab_anywhere=False, no_titlebar=False, keep_on_top=None, no_button=False):
         """
 
@@ -17103,27 +17103,16 @@ class QuickMeter(object):
 
     def BuildWindow(self, *args):
         layout = []
-        if self.orientation.lower().startswith('h'):
-            col = []
-            col += [[T(''.join(map(lambda x: str(x) + '\n', args)),
-                       key='-OPTMSG-')]]  ### convert all *args into one string that can be updated
-            col += [[T('', size=(30, 10), key='-STATS-')],
-                    [ProgressBar(max_value=self.max_value, orientation='h', key='-PROG-', size=self.size,
-                                 bar_color=self.bar_color)]]
-            if not self.no_button:
-                col += [[Cancel(button_color=self.button_color), Stretch()]]
-            layout = [Column(col)]
-        else:
-            col = [[ProgressBar(max_value=self.max_value, orientation='v', key='-PROG-', size=self.size,
-                                bar_color=self.bar_color)]]
-            col2 = []
-            col2 += [[T(''.join(map(lambda x: str(x) + '\n', args)),
-                        key='-OPTMSG-')]]  ### convert all *args into one string that can be updated
-            col2 += [[T('', size=(30, 10), key='-STATS-')]]
-            if not self.no_button:
-                col2 += [[Cancel(button_color=self.button_color), Stretch()]]
+        col = []
+        col += [[T(''.join(map(lambda x: str(x) + '\n', args)),
+                   key='-OPTMSG-')]]  ### convert all *args into one string that can be updated
+        col += [ [T('', size=(50, 4), key='-STATS-')],
+                [ProgressBar(max_value=self.max_value, orientation='h', key='-PROG-', size=self.size,
+                             bar_color=self.bar_color, expand_x=True)]]
+        if not self.no_button:
+            col += [[Push(), Cancel(button_color=self.button_color)]]
+        layout = [Column(col)]
 
-            layout = [Column(col), Column(col2)]
         self.window = Window(self.title, grab_anywhere=self.grab_anywhere, border_depth=self.border_width, no_titlebar=self.no_titlebar, disable_close=True, keep_on_top=self.keep_on_top)
         self.window.Layout([layout]).Finalize()
 
@@ -17163,15 +17152,9 @@ class QuickMeter(object):
         total_time = time_delta + datetime.timedelta(seconds=seconds_remaining)
         total_time_short = str(total_time).split(".")[0]
         self.stat_messages = [
-            '{} of {}'.format(self.current_value, self.max_value),
-            '{} %'.format(100 * self.current_value // self.max_value),
-            '',
-            ' {:6.2f} Iterations per Second'.format(self.current_value / total_seconds),
-            ' {:6.2f} Seconds per Iteration'.format(total_seconds / (self.current_value if self.current_value else 1)),
-            '',
-            '{} Elapsed Time'.format(time_delta_short),
-            '{} Time Remaining'.format(time_remaining_short),
-            '{} Estimated Total Time'.format(total_time_short)]
+            '{}% complete'.format(100 * self.current_value // self.max_value),
+            '{} of {} elapsed'.format(time_delta_short, total_time_short),
+            '{} remaining'.format(time_remaining_short), ]
         return self.stat_messages
 
 

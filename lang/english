@@ -68,3 +68,11 @@ drive==PS2 Drive
 part==PS2 Partition
 path==PS2 Path
 folders==Select Folder
+
+::gameinstall::Install PS2 Games
+buttons::selected==Selected::unselected==Unselected::all==All
+list==Game List
+folder==Game Folder
+drive==PS2 Drive
+install==Install
+select==Select a games Folder

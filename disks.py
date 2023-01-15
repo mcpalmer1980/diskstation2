@@ -103,10 +103,15 @@ def partition_menu():
     def update(info):
         if info:
             window['driveinfo'].update(tt.info.format(info.total, info.used, info.avail))
-            items = info.parts if boxes[tt.parts] else []
-            items = items + info.games if boxes[tt.games] else items
 
-            items = sorted([f'{d} ({s})' for d, s in items], key=nocase)
+            print(info.games)
+
+            items = []
+            if boxes[tt.parts]:
+                items = [f'{d} ({s})' for d, s in info.parts]
+            if boxes[tt.games]:
+                items += [f'{g[0]} ({g[3]})' for g in info.games]
+            items.sort(key=nocase)
             window['list'].update(items)
             window[tt.remove].update(disabled=False)
             window[tt.add].update(disabled=False)
@@ -153,8 +158,9 @@ def partition_menu():
             sel = values['list'][0].rsplit(maxsplit=1)[0]
             if sg.popup_yes_no(f'Remove "{sel}" partition from {dev}?', title='Confirm') == 'Yes':
                 if sel in [i[0] for i in info.games]:
-                    sel = 'PP.HDL.' + sel
-                remove_partition(dev, sel)
+                    remove_game(dev, sel)
+                else:
+                    remove_partition(dev, sel)
                 info = get_ps2_driveinfo(dev)
                 items = update(info)
         elif event == tt.add:
@@ -243,18 +249,29 @@ def get_linux_drives():
 
 def get_ps2_driveinfo(dev):
     print(f'Getting PS2 Drive Info ({dev})')
+
+    # scan partitions
     err, outp = run_process(f'{hdl_dump} toc {dev}', sudo=True, quiet=True)
     if err: return
     parts = []; games = []
     for l in outp[1:-1]:
         cols = l.split(maxsplit=4)
-        if cols[-1].startswith('PP.HDL.'):
-            games.append((cols[-1][7:], size2str(cols[-2])))
-        else:
+        if not cols[-1].startswith('PP.'):
             parts.append((cols[-1], size2str(cols[-2])))
 
+    # scan size and remaining space
     s = outp[-1].replace(',', '').split()
     total, used, avail = [size2str(i) for i in s if i.endswith('MB')]
+
+    # scan games
+    err, outp = run_process(f'{hdl_dump} hdl_toc {dev}', sudo=True, quiet=True)
+    if err: return
+    start = outp[0].find('startup')
+    for l in outp[1:-1]:
+        code, name = l[start:].split(maxsplit=1)
+        typ, size = l.split()[:2]
+        games.append((name, code, typ, size2str(size))  )
+
     return PS2DriveInfo(parts, games, total, used, avail)
 
 def get_ps2_path(dev, part, path, full=False):
@@ -288,6 +305,9 @@ def remove_partition(dev, part):
     cmd = pfsshell
     inp = f'device {dev}\nrmpart {part}\nexit\n'
     run_process(cmd, inp, sudo=True, quiet=True)
+def remove_game(dev, game):
+    cmd = (hdl_dump, 'delete', dev, game)
+    run_process(cmd, None, sudo=True, quiet=True)
 
 def remove_ps2_path(dev, part, path):
     print(f'removing "{path}" from {part} on {dev}')

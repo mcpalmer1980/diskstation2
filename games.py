@@ -15,7 +15,7 @@ def_max = 32
 
 def install_roms():
     path = popup_get_folder('Choose Rom Path', 'Source', def_path,
-            options['history']) or def_path
+            options['history'])
     if path and os.path.exists(path):
         exts = filter_exts(path)
         if exts:
@@ -34,47 +34,150 @@ def install_roms():
     print('User Canceled')
 
 def install_games():
-    path = popup_get_folder('Choose Game Path', 'Source', def_path,
-            options['history']) or def_path
-    if path and os.path.exists(path):
-        exts = filter_exts(path)
-        if exts:
-            opts = filename_options()
-            if opts:
-                r = prep_names(path, exts, opts)
-                if r:
-                    roms, long = r
-                    roms = filter_files(roms)
-                    if roms:
-                        roms = edit_long_names(roms, long, opts)
-                        if roms:
-                            #print_roms(roms, 'Rom List')
-                            finish(path, roms)
-                            return
-    print('User Canceled')
+    def update_games(path):
+        print('Updating game list:', path)
+        if path:
+            games = scan_for_games(path)
+            game_names = sorted([g[0] for g in games.values() 
+                    if g[1] not in installed_games], key=nocase)
+            window['list'].update(game_names)
+        else:
+            return [], ['No games to install']
+        return games, game_names
+    def update_buttons():
+        sel = values.get('list', [])
+        items = window['list'].get_list_values()
+        window[tt.selected].update(disabled=not bool(sel))
+        window[tt.unselected].update(disabled=len(sel) == len(items))
+        if items and info:
+            window[tt.all].update(disabled=False)
+        else:
+            [window[e].update(disabled=True) for e in tt.buttons]
+    def install(picked):
+        picked = {fn: g for fn, g in games.items() if g[0] in picked}
+        commands = {}
+
+        finished = 0
+        total = len(picked)
+        for fn, (name, code, typ) in picked.items():
+            inj = 'inject_dvd' if typ == 'DVD' else 'inject_cd'
+            cmd = (hdl_dump, inj, dev, name, fn, code)
+            msg = f'Installing {name} ({finished+1}/{total})'
+            run_process(cmd, None, "Please Wait", True, msg, True)
+
+    tt.set('gameinstall')
+    choices, drives = disks.get_linux_drives()
+    drivelist = list(choices.keys())
+    installed_games = []
+    values = {}
+    info = path = None
+    
+    history = options['game_folders']
+    if history and os.path.isdir(history[0]):
+        path = history[0]
+        games = scan_for_games(history[0])
+        game_names = sorted([g[0] for g in games.values()], key=nocase)
+    else:
+        history = ['']
+        game_names = [tt.select]
+
+    layout = [
+        [sg.Text(tt.folder, size=12), sg.Combo(history, default_value=history[0],
+                key='folder', expand_x=True, enable_events=True, bind_return_key=True),
+                sg.FolderBrowse()],
+        [sg.Text(tt.drive, size=12),
+            sg.Combo(drivelist, readonly=True, key='drive', expand_x=True,
+                enable_events=True)],
+        [sg.Push(), sg.Text('', key='driveinfo')],
+        [sg.Text(tt.list)],
+        [sg.Listbox(game_names, size=(60, 10), key='list', expand_x=True, expand_y=True,
+                enable_events=True, select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
+        [sg.Push(), sg.Text(tt.install)] + [sg.Button(b, disabled=True) for b in tt.buttons]]
+    window = sg.Window(tt.title, layout, modal=True, finalize=True)
+    update_buttons()
+    tt.set_tooltips(window)
+
+    while True:
+        event, values = window.read()
+        if event in (sg.WIN_CLOSED,):
+            break
+        elif event == 'folder':
+            path = values['folder']
+            if os.path.isdir(path):
+                if path in history:
+                    history.remove(path)
+                options['game_folders'].insert(0, path)
+                history = options['game_folders']
+                window['folder'].update(path, values=history)
+                games, game_names = update_games(path)
+            update_buttons()
+        elif event == 'drive':
+            sel = values['drive']
+            dev = choices[sel]
+            info = disks.get_ps2_driveinfo(dev)
+            installed_games = [g[1] for g in info.games] if info else []
+            games, game_names = update_games(path)
+            update_buttons()
+        elif event == 'list':
+            update_buttons()
+        elif event == tt.all:
+            install(game_names)
+        elif event == tt.selected:
+            install(values['list'])
+        elif event == tt.unselected:
+            install([g for g in game_names if g not in values['list']])
+
 
 def scan_for_games(path):
+    path = os.path.normpath(path) + os.sep
+
+    #files = filter_files(files)
+    commands = []
+    for fn in os.listdir(path):
+        if os.path.splitext(fn)[1] in ('.iso', '.ISO'):
+            cmd = (hdl_dump, 'cdvd_info2', path+fn)
+            commands.append((path+fn, cmd))
+
+    games = {}
+    output = run_processes(commands)
+    for fn, v in output.items():
+        typ, _, _, code = v[-1].split()[-4:]
+        path, name = os.path.split(fn)
+        name, ext = os.path.splitext(name)
+        if name[:12].count('.') > 1:
+            name = name.rsplit('.', 1)[1]
+        code = code.strip('"')
+        games[fn] = name, code, typ
+    return games
+
+def scan_for_gamesold(path):
     path = os.path.normpath(path) + os.sep
     files = {}
     for fn in os.listdir(path):
         name, ext = os.path.splitext(fn)
-        if ext in ('.iso', '.ISO'):
+        if ext in ('.iso',  '.ISO'):
             # Remove CODE from filename
             if name[:12].count('.') > 1:
                 name = name.rsplit('.', 1)[1]
             files[path+fn] = name
 
-    files = filter_files(files)
+    #files = filter_files(files)
+    total = len(files)
+    for i, (fn, name) in enumerate(files.items()):
 
-    for fn, name in files.items():
+        if not sg.one_line_progress_meter('Progress Bar',
+                                          i+1, total,
+                                          'Scanning for Games',
+                                          'Single threaded',
+                                          bar_color=('white', 'red')):
+            break
+
         # Retrieve code and disk type from HDL_DUMP
         err, outp = run_process((hdl_dump, 'cdvd_info2', fn),
                 '', sudo=True, quiet=True)
         typ, _, _, code = outp[-1].split()[-4:]
 
-        print(name, code, typ)
-
-
+        #print(name, code, typ)
 
 def finish(path, roms):
     tt.set('finishroms')
@@ -99,7 +202,7 @@ def finish(path, roms):
         [sg.Text(tt.folders)],
         [sg.Listbox([], size=(60, 8), key='list', enable_events=True,
                 expand_x=True, expand_y=True)],
-        [sg.Push()] +    [sg.Button(b, disabled=b == tt.install) for b in tt.buttons] ]
+        [sg.Push()] + [sg.Button(b, disabled=b == tt.install) for b in tt.buttons] ]
 
     window = sg.Window('Finish', layout, modal=True, finalize=True)
     tt.set_tooltips(window)
@@ -202,49 +305,6 @@ def save_script(dev, part, devpath, files, filepath):
             print(f'put "{f}"', file=outp)
         print('exit', file=outp)
 
-
-def old_finish_stuff():
-    tt.set('finishroms')
-    count = len(roms)
-    ps2path = path.split(os.sep)[-1]
-    devices, devinfo = get_linux_drives()
-    buttons=('Neither', 'Copy', 'Rename')
-
-    layout = [
-        [sg.Text(f'You have {count} roms selected from {path}.')],
-        [sg.Text('You may copy them to a new path, rename them in place,')],
-        [sg.Text('or just create an install script.')],
-        [sg.Text('PS2 HDD:', size=12), sg.In(platform['dev'], key='dev')],
-        [sg.Text('PS2 partition:', size=12), sg.In(platform['part'], key='part')],
-        [sg.Text('PS2 path:', size=12), sg.In(ps2path, key='path')],        
-        [sg.Push()] + [sg.Button(b) for b in buttons]] 
-     
-    if button not in buttons:
-        return
-    if button == 'Rename':
-        target = path
-        for k, v in roms.items():
-            os.rename(
-                os.path.join(path, k),
-                os.path.join(path, v))
-        files = roms.values()
-    if button == 'Copy':
-        target = popup_get_folder('Choose Target Path', 'Target', path)
-        if os.path.isfile(target):
-            popup_error('Target is a file!')
-            print('Target is a file!')
-            return
-        elif not os.path.exists(target):
-            os.makedirs(target)
-        for k, v in roms.items():
-            shutil.copy(
-                os.path.join(path, k),
-                os.path.join(target, v) )
-        files = roms.values()
-    else:
-        target = path
-        files = roms.values()
-    window.close()
 
 def filter_exts(path):
     tt.set('filterexts')
@@ -458,9 +518,6 @@ def print_roms(roms, message=''):
     for k, v in roms.items():
         print(f'{k:<{longest+1}}{v}')
     print.unpause()
-
-if __name__ == '__main__':
-    main()
 
 
 

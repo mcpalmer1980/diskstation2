@@ -45,6 +45,8 @@ def main_window(theme='DarkBlack1', size=16):
                 disks.partition_menu()
             elif event == tt.roms:
                 games.install_roms()
+            elif event == tt.install:
+                games.install_games()
             else:
                 print(f'{event}: {values}')
             returned_at = time.perf_counter()
@@ -106,13 +108,33 @@ def theme_menu(theme=False):
             return theme_menu(theme)
     return
 
+
+def perf(message=None):
+    if message:
+        t = time.perf_counter() - perf.last_time
+        print(f'{message}: {t*1000:0.0f}')
+        perf.last_time = time.perf_counter()
+    else:
+        perf.last_time = time.perf_counter()
+perf.last_time = 0
+
+
 if __name__ == '__main__':
+    '''
+    path = '/home/michael/Roms/'
+    tasks = [(d, ('ls', path+d)) for d in os.listdir(path) if os.path.isdir(path+d) ]
+    perf()
+    path = '/media/easystore/PS2SMB/DVD.old/'
+    games.scan_for_gamesold(path)
+    perf('single threaded scan_for_games')
+    games.scan_for_games(path)
+    perf('multi threaded scan_for_games')
+    exit()'''
+
+
+
+
     tt.load('english')
-    games.scan_for_games('/media/easystore/PS2SMB/DVD')
-
-    exit()
-
-
     load_options()
     main_window()
     save_options()

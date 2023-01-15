@@ -12,7 +12,8 @@ options = dict(
     font = ('Arial', 16),
     theme = random.choice(themes),
     tooltips = True,
-    history = []
+    history = [],
+    game_folders = []
 )
 
 platforms = {
@@ -44,7 +45,6 @@ def load_options():
     load_options.options = backup
 
 def save_options():
-    print(options)
     if options == load_options.options:
         print('Options unchanged')
     else:
@@ -356,6 +356,81 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
         for l in outp:
             print(l)
     return p.returncode, outp
+#run_process.password = 'Anpw4mnD!\n'.encode()
+
+def run_process2(cmd, label, outputs, quiet=True):
+    # THREAD HANDLER
+    def output_thread(p):
+        def get_output():
+            while p.poll() == None:
+                l = p.stdout.readline().decode().strip()
+                if l:
+                    outp.append(l)
+                    if not quiet:
+                        print(l)
+            remaining = p.stdout.readlines()
+            for l in remaining:
+                outp.append(l.decode().strip())
+                if not quiet:
+                    print(l.decode().strip())
+            if not p.returncode:
+                outputs[label] = outp
+        outp = []
+
+        t = Thread(target=get_output, daemon=True)
+        t.start()
+        return t
+
+    p = sp.Popen(cmd, stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.STDOUT)
+    return output_thread(p)
+
+def run_processes(tasks, max_workers=5):
+    workers = []
+    output = {}
+    total = len(tasks)
+    finished = 1
+    while tasks or workers:
+        if len(workers) < max_workers and tasks:
+            name, command = tasks.pop()
+            t = run_process2(command, name, output)
+            workers.append(t)
+        elif workers:
+            for t in reversed(workers):
+                if not t.is_alive():
+                    workers.remove(t)
+                    finished += 1
+        else:
+            time.sleep(.1)
+
+        if not sg.one_line_progress_meter('Progress Bar', finished, total,
+                'Scanning for Games', 'Multi threaded'):
+            break
+
+
+
+
+    while workers:
+        for t in reversed(workers):
+            if not t.is_alive():
+                workers.remove(t)
+        time.sleep(.1)
+    return output
+
+
 run_process.password = 'Anpw4mnD!\n'.encode()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import disks, games
