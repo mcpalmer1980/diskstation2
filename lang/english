@@ -61,6 +61,7 @@ remove||Remove the selected partition
 add||Create a new partition
 partition==Partitions
 info==Total: {}, Used: {}, Free: {}
+nonps2==Not a PS2 formated drive
 
 ::finishroms::Install or Copy Roms
 buttons::copy==Copy Roms::rename==Rename Roms::install==Install Roms
@@ -76,3 +77,19 @@ folder==Game Folder
 drive==PS2 Drive
 install==Install
 select==Select a games Folder
+info==Total: {}, Used: {}, Free: {}
+nonps2==Not a PS2 formated drive
+
+::fileremove::Remove Files or Folders
+buttons::selected==Selected::unselected==Unselected::all==All
+info==Total: {}, Used: {}, Free: {}
+nonps2==Not a PS2 formated drive
+drive==PS2 Drive
+part==PS2 Partition
+list==File List
+select==Select a PS2 Drive
+remove==Remove
+confirm==Confirm
+rmsel==Remove all selected files from your PS2 HDD?
+rmunsel==Remove all non-selected files shown from your PS2 HDD?
+rmall==Remove all files from {} and all subfolders?

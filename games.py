@@ -115,6 +115,10 @@ def install_games():
             sel = values['drive']
             dev = choices[sel]
             info = disks.get_ps2_driveinfo(dev)
+            if info:
+                t = tt.info.format(info.total, info.used, info.avail)
+            else: t = tt.nonps2
+            window['driveinfo'].update(t)
             installed_games = [g[1] for g in info.games] if info else []
             games, game_names = update_games(path)
             update_buttons()
@@ -131,7 +135,6 @@ def install_games():
 def scan_for_games(path):
     path = os.path.normpath(path) + os.sep
 
-    #files = filter_files(files)
     commands = []
     for fn in os.listdir(path):
         if os.path.splitext(fn)[1] in ('.iso', '.ISO'):
@@ -149,35 +152,6 @@ def scan_for_games(path):
         code = code.strip('"')
         games[fn] = name, code, typ
     return games
-
-def scan_for_gamesold(path):
-    path = os.path.normpath(path) + os.sep
-    files = {}
-    for fn in os.listdir(path):
-        name, ext = os.path.splitext(fn)
-        if ext in ('.iso',  '.ISO'):
-            # Remove CODE from filename
-            if name[:12].count('.') > 1:
-                name = name.rsplit('.', 1)[1]
-            files[path+fn] = name
-
-    #files = filter_files(files)
-    total = len(files)
-    for i, (fn, name) in enumerate(files.items()):
-
-        if not sg.one_line_progress_meter('Progress Bar',
-                                          i+1, total,
-                                          'Scanning for Games',
-                                          'Single threaded',
-                                          bar_color=('white', 'red')):
-            break
-
-        # Retrieve code and disk type from HDL_DUMP
-        err, outp = run_process((hdl_dump, 'cdvd_info2', fn),
-                '', sudo=True, quiet=True)
-        typ, _, _, code = outp[-1].split()[-4:]
-
-        #print(name, code, typ)
 
 def finish(path, roms):
     tt.set('finishroms')
@@ -426,23 +400,36 @@ def filename_options():
     return options    
 
 def filter_files(files):
+    def update_buttons():
+        sel = window['list'].get()
+        items = window['list'].get_list_values()
+        window[tt.selected].update(disabled=not bool(sel))
+        window[tt.unselected].update(disabled=len(sel) == len(items))
+        if items:
+            window[tt.all].update(disabled=False)
+        else:
+            [window[e].update(disabled=True) for e in tt.buttons]
+        
     tt.set('filterfiles')
-    fixed = {}
     if isinstance(files, dict):
         items = sorted(files.values(), key=nocase)
     else:
         items = sorted(files, key=nocase)
     layout = [
-        [sg.Listbox(items, size=(60, 10), key='list', select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
+        [sg.Listbox(items, size=(60, 10), key='list', enable_events=True,
+                select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
         [sg.Push(), sg.Text(tt.include), sg.Button(tt.selected), sg.Button(tt.unselected),
                 sg.Button(tt.all)] ]
     window = sg.Window(tt.title, layout, modal=True, finalize=True)
     selected = items[0]
+    update_buttons()
     
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED:
             return
+        elif event == 'list':
+            update_buttons()
         elif event == tt.all:
             r = files
             break

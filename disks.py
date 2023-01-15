@@ -118,7 +118,7 @@ def partition_menu():
 
         else:
             items = []
-            window['driveinfo'].update('Not a PS2 formated drive')
+            window['driveinfo'].update(tt.nonps2)
             window['list'].update([])
             window[tt.remove].update(disabled=True)
             window[tt.add].update(disabled=True)
@@ -324,6 +324,11 @@ def remove_ps2_path(dev, part, path):
         inp += f'rmdir "{path}"\nexit\n'
     run_process(pfsshell, inp, sudo=True, quiet=True)
 
+def remove_ps2_files(dev, part, files):
+    inp = f'device {dev}\nmount {part}\n'
+    inp += '\n'.join([f'rm {f}' for f in files]) + '\nexit\n'
+    print(inp)
+
 def walk_ps2_path(dev, part, path='/', separate=False, _deep=False, quiet=False):
     if not _deep:
         path = path if path.endswith('/') else path+'/'
@@ -344,3 +349,97 @@ def walk_ps2_path(dev, part, path='/', separate=False, _deep=False, quiet=False)
         return [i for i in l if not i.endswith('/')], [i for i in l if i.endswith('/')]
     else:
         return sorted(files+more, key=nocase)
+
+
+def remove_window():
+    def update_games(path):
+        pass
+    def update_buttons():
+        sel = values.get('list', [])
+        items = window['list'].get_list_values()
+        window[tt.selected].update(disabled=not bool(sel))
+        window[tt.unselected].update(disabled=len(sel) == len(items))
+        if items and part != None:
+            window[tt.all].update(disabled=False)
+        else:
+            [window[e].update(disabled=True) for e in tt.buttons]
+
+    tt.set('fileremove')
+    choices, drives = get_linux_drives()
+    drivelist = list(choices.keys())
+    values = {}
+    dev = path = part = None
+    
+    history = options['game_folders']
+    if history and os.path.isdir(history[0]):
+        path = history[0]
+        filelist = []
+    else:
+        history = ['']
+        filelist = [tt.select]
+
+    layout = [
+        [sg.Text(tt.drive, size=12),
+            sg.Combo(drivelist, readonly=True, key='drive', expand_x=True,
+                enable_events=True)],
+        [sg.Push(), sg.Text('', key='driveinfo')],
+        [sg.Text(tt.list)],
+        [sg.Listbox(filelist, size=(60, 10), key='list', expand_x=True, expand_y=True,
+                enable_events=True, select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED)],
+        [sg.Checkbox(tt.confirm, key='confirm'), sg.Push(), sg.Text(tt.remove)] + [sg.Button(b, disabled=True) for b in tt.buttons]]
+    window = sg.Window(tt.title, layout, modal=True, finalize=True)
+    update_buttons()
+    tt.set_tooltips(window)
+
+    while True:
+        event, values = window.read()
+        if values:
+            confirm = values['confirm']
+        if event in (sg.WIN_CLOSED,):
+            break
+        elif event == 'drive':
+            sel = values['drive']
+            dev = choices[sel]
+            info = get_ps2_driveinfo(dev)
+            if info:
+                path = None
+                t = tt.info.format(info.total, info.used, info.avail)
+                filelist = [p[0] for p in info.parts]
+            else:
+                t = tt.nonps2
+                filelist = []
+            window['driveinfo'].update(t)
+            window['list'].update(filelist)
+            update_buttons()
+        elif event == 'list':
+            sel = values['list'][-1] if values['list'] else None
+            if info and part == None:
+                path = '/'
+                part = sel
+                filelist = ['..'] + get_ps2_path(dev, part, path)
+                window['list'].update(filelist)
+            elif sel and sel.endswith('/'):
+                path += sel
+                filelist = ['..'] + get_ps2_path(dev, part, path)
+                window['list'].update(filelist)
+            elif sel == '..':
+                path = os.path.split(path.rstrip('/'))[0]
+                print(path)
+                if path:
+                    filelist = ['..'] + get_ps2_path(dev, part, path)
+                else:
+                    part = None
+                    filelist = [p[0] for p in info.parts]
+                window['list'].update(filelist)
+            update_buttons()
+        elif event == tt.all:
+            pass
+        elif event == tt.selected:
+            if confirm or sg.popup_ok_cancel(tt.rmsel, title=tt.confirm) == 'OK':
+                files = [path+f for f in values['list'] if f != '..']
+                remove_ps2_files(dev, part, files)
+        elif event == tt.unselected:
+            if confirm or sg.popup_ok_cancel(tt.rmunsel, title=tt.confirm) == 'OK':
+                files = [path+f for f in filelist
+                        if f not in values['list'] and  f != '..']
+                remove_ps2_files(dev, part, files)
