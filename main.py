@@ -49,6 +49,8 @@ def main_window(theme='DarkBlack1', size=16):
                 games.install_games()
             elif event == tt.remove:
                 disks.remove_window()
+            elif event == tt.convps1:
+                disks.conv_ps1()
             else:
                 print(f'{event}: {values}')
             returned_at = time.perf_counter()

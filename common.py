@@ -227,7 +227,7 @@ def decode_size_str(s, _raise=False):
         return 0
     return size
 
-def popup_get_folder(message='', title='', path='', history=None, allow_new=True):
+def popup_get_folder(message='', title='', path='', history=None, allow_new=True, ask_sub=False):
     tt.set('getfolder')
     browse_button = sg.FolderBrowse(tt.browse, initial_folder=path)
     layout = [[]]
@@ -240,6 +240,8 @@ def popup_get_folder(message='', title='', path='', history=None, allow_new=True
                     browse_button]]
     else:
         layout += [[sg.InputText(default_text=path, key='-INPUT-'), browse_button]]
+    if ask_sub:
+        layout += [[sg.Checkbox(tt.asksub, key='asksub')]]
 
     layout += [[sg.Push(), sg.Button(tt.cancel, size=(6, 1)), sg.Button(tt.ok, size=(6, 1), bind_return_key=True)]]
 
@@ -251,7 +253,7 @@ def popup_get_folder(message='', title='', path='', history=None, allow_new=True
         if event in (tt.cancel, sg.WIN_CLOSED):
             break
         elif event in (tt.ok, '-INPUT-'):
-            val = values['-INPUT-']
+            val = os.path.normpath(values['-INPUT-'])
             if os.path.exists(val):
                 if type(history) == list:
                     if val in history:
@@ -264,6 +266,10 @@ def popup_get_folder(message='', title='', path='', history=None, allow_new=True
             break
 
     window.close()
+   
+    if ask_sub:
+        print('asked')
+        return val, values['asksub']
     return val
 
 def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):

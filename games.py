@@ -14,8 +14,8 @@ def_path = '/home/michael/Roms/genesis'
 def_max = 32
 
 def install_roms():
-    path = popup_get_folder('Choose Rom Path', 'Source', def_path,
-            options['history'])
+    path, subs = popup_get_folder('Choose Rom Path', 'Source', def_path,
+            options['history'], True)
     if path and os.path.exists(path):
         exts = filter_exts(path)
         if exts:

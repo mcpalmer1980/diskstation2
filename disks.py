@@ -351,7 +351,6 @@ def walk_ps2_path(dev, part, path='/', separate=False, _deep=False, quiet=False)
     else:
         return sorted(files+more, key=nocase)
 
-
 def remove_window():
     def update_games(path):
         pass
@@ -461,3 +460,63 @@ def remove_window():
                 filelist = ['..'] + get_ps2_path(dev, part, path)
                 window['list'].update(filelist)
 
+def conv_ps1():
+    tt.set('convps1')
+    exts = ('.cue', '.chd', '.32x')
+    files = get_popup_folder_files(tt.source, tt.choose, options['history'],
+            exts, True)
+
+
+
+def get_popup_folder_files(title, message, path, exts=None, allow_subs=False):
+    if isinstance(path, str):
+        path = path; history = []
+    elif isinstance(path, list):
+        history = path
+        path = history[0] if history else ''
+    else:
+        history = []
+        path = ''
+    chosen = []
+
+    if allow_subs:
+        path, subs = popup_get_folder(message, title, path, history, False, allow_subs)
+    else:
+        path = popup_get_folder(message, title, path, history, False, allow_subs)
+        subs = False
+
+    if subs:
+        lp = len(path)
+        for root, folders, files in os.walk(path):
+            for f in files:
+                if not exts or os.path.splitext(f)[1].lower() in exts:
+                    chosen.append(os.path.relpath(os.path.join(root, f), path))
+    else:
+        chosen = [f for f in os.listdir(path)
+                if not exts or os.path.splitext(f)[1].lower() in exts]
+    return chosen
+
+
+    '''
+        if ext in ('.chd', '.CHD'):
+            cmd = 'chdman extractcd -i "{}" -o "{}" -ob "{}"'.format(
+                    path+fn, path+base+'.cue', path+base+'.bin')
+            print(cmd)
+            if os.system(cmd):
+                print('error, skipping file')
+                continue
+            os.remove(path+fn)
+
+            cmd = './cue2pops "{}"'.format(path+base+'.cue')
+
+            print(cmd)
+            if not os.system(cmd):
+                os.remove(path+base+'.cue')
+                os.remove(path+base+'.bin')
+        elif ext in ('.cue', '.CUE'):
+            cmd = './cue2pops "{}"'.format(path+base+'.cue')
+
+            print(cmd)
+            if not os.system(cmd):
+                os.remove(path+base+'.cue')
+                os.remove(path+base+'.bin')'''
