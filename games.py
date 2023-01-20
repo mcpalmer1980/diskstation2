@@ -15,7 +15,7 @@ def_max = 32
 
 def install_roms():
     path, subs = popup_get_folder('Choose Rom Path', 'Source', def_path,
-            options['history'], True)
+            options['history'], True, True)
     if path and os.path.exists(path):
         exts = filter_exts(path)
         if exts:
@@ -24,8 +24,9 @@ def install_roms():
                 r = prep_names(path, exts, opts)
                 if r:
                     roms, long = r
-                    roms = filter_files(roms)
-                    if roms:
+                    selected = filter_files(roms.values())
+                    if selected:
+                        roms = {k: v for k, v in roms.items() if v in selected}
                         roms = edit_long_names(roms, long, opts)
                         if roms:
                             #print_roms(roms, 'Rom List')
@@ -314,7 +315,6 @@ def filter_exts(path):
     print(f'Extensions found: {", ".join(entries    )}')
     
     layout = [[sg.Listbox(entries, size = (40, 8), key='list', enable_events=True)],
-              [sg.Checkbox(tt.subfolders)],  
               [sg.Push(), sg.Button(tt.reset), sg.Button(tt.invert), sg.Button(tt.done)] ]
 
     window = sg.Window(tt.title, layout, modal=True, finalize=True)
@@ -418,52 +418,6 @@ def filename_options():
     print('Filename options: ', options)
     return options    
 
-def filter_files(files):
-    def update_buttons():
-        sel = window['list'].get()
-        items = window['list'].get_list_values()
-        window[tt.selected].update(disabled=not bool(sel))
-        window[tt.unselected].update(disabled=len(sel) == len(items))
-        if items:
-            window[tt.all].update(disabled=False)
-        else:
-            [window[e].update(disabled=True) for e in tt.buttons]
-        
-    tt.set('filterfiles')
-    if isinstance(files, dict):
-        items = sorted(files.values(), key=nocase)
-    else:
-        items = sorted(files, key=nocase)
-    layout = [
-        [sg.Listbox(items, size=(60, 10), key='list', enable_events=True,
-                select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
-        [sg.Push(), sg.Text(tt.include), sg.Button(tt.selected), sg.Button(tt.unselected),
-                sg.Button(tt.all)] ]
-    window = sg.Window(tt.title, layout, modal=True, finalize=True)
-    selected = items[0]
-    update_buttons()
-    
-    while True:
-        event, values = window.read()
-        if event == sg.WIN_CLOSED:
-            return
-        elif event == 'list':
-            update_buttons()
-        elif event == tt.all:
-            r = files
-            break
-        elif event == tt.unselected:
-            selected = values['list']
-            r = {k: v for k, v in files.items() if v not in selected}
-            break
-        elif event == tt.selected:
-            selected = values['list']
-            if selected:
-                r = {k: v for k, v in files.items() if v in selected}
-                break
-
-    window.close()
-    return r
 
 def edit_long_names(roms, long, opts):
     def get_values(term):

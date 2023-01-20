@@ -22,8 +22,11 @@ platforms = {
 }
 platform = platforms.get(sys.platform, platforms['linux'])
 
-pfsshell = os.path.join(root, 'pfsshell')
-hdl_dump = os.path.join(root, 'hdl_dump_090')
+pfsshell = os.path.join(root, 'bin', sys.platform, 'pfsshell')
+hdl_dump = os.path.join(root, 'bin', sys.platform, 'hdl_dump_090')
+chdman = os.path.join(root, 'bin', sys.platform, 'chdman')
+bchunk = os.path.join(root, 'bin', sys.platform, 'bchunk')
+cue2pops = os.path.join(root, 'bin', sys.platform, 'cue2pops')
 
 def load_options():
     opts = {}
@@ -264,11 +267,9 @@ def popup_get_folder(message='', title='', path='', history=None, allow_new=True
             else:
                 val = None
             break
-
     window.close()
    
     if ask_sub:
-        print('asked')
         return val, values['asksub']
     return val
 
@@ -362,7 +363,6 @@ def run_process(cmd, inp='', title='', sudo=False, message='', quiet=False):
         for l in outp:
             print(l)
     return p.returncode, outp
-#run_process.password = 'Anpw4mnD!\n'.encode()
 
 def run_process2(cmd, label, outputs, quiet=True):
     # THREAD HANDLER
@@ -422,21 +422,54 @@ def run_processes(tasks, max_workers=5):
         time.sleep(.1)
     return output
 
+def filter_files(files):
+    def update_buttons():
+        sel = window['list'].get()
+        items = window['list'].get_list_values()
+        window[tt.selected].update(disabled=not bool(sel))
+        window[tt.unselected].update(disabled=len(sel) == len(items))
+        if items:
+            window[tt.all].update(disabled=False)
+        else:
+            [window[e].update(disabled=True) for e in tt.buttons]
+    tt.set('filterfiles')
+
+    if not files: return files
+    path = os.path.commonpath(files)
+    lookup = {os.path.relpath(f, path): f for f in files }
+    items = sorted(lookup.keys(), key=nocase)
+
+    layout = [
+        [sg.Listbox(items, size=(60, 10), key='list', enable_events=True,
+                select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE)],
+        [sg.Push(), sg.Text(tt.include), sg.Button(tt.selected), sg.Button(tt.unselected),
+                sg.Button(tt.all)] ]
+    window = sg.Window(tt.title, layout, modal=True, finalize=True)
+    selected = items[0]
+    update_buttons()
+    
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED:
+            return
+        elif event == 'list':
+            update_buttons()
+        elif event == tt.all:
+            r = files
+            break
+        elif event == tt.unselected:
+            selected = values['list']
+            r = [v for k, v in lookup.items() if k not in selected]
+            break
+        elif event == tt.selected:
+            selected = values['list']
+            r = [v for k, v in lookup.items() if k in selected]
+            break
+
+    window.close()
+    return r
+
 
 run_process.password = 'Anpw4mnD!\n'.encode()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 import disks, games

@@ -99,3 +99,5 @@ rmall==Remove all files from {} and its subfolders?
 ::convps1::Convert PS1 to VCD
 choose==Choose a PS1 game path
 source==Source
+convstr==Converting {} ({}/{})
+converting==Converting

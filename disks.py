@@ -462,11 +462,14 @@ def remove_window():
 
 def conv_ps1():
     tt.set('convps1')
-    exts = ('.cue', '.chd', '.32x')
+    exts = ('.cue', '.chd')
     files = get_popup_folder_files(tt.source, tt.choose, options['history'],
             exts, True)
+    files = filter_files(files)
 
-
+    if files:
+        if sys.platform == 'linux':
+            conv_ps1_linux(files)
 
 def get_popup_folder_files(title, message, path, exts=None, allow_subs=False):
     if isinstance(path, str):
@@ -490,33 +493,40 @@ def get_popup_folder_files(title, message, path, exts=None, allow_subs=False):
         for root, folders, files in os.walk(path):
             for f in files:
                 if not exts or os.path.splitext(f)[1].lower() in exts:
-                    chosen.append(os.path.relpath(os.path.join(root, f), path))
+                    chosen.append(os.path.join(root, f))
     else:
-        chosen = [f for f in os.listdir(path)
+        chosen = [os.path.join(path, f) for f in os.listdir(path)
                 if not exts or os.path.splitext(f)[1].lower() in exts]
     return chosen
 
 
-    '''
-        if ext in ('.chd', '.CHD'):
-            cmd = 'chdman extractcd -i "{}" -o "{}" -ob "{}"'.format(
-                    path+fn, path+base+'.cue', path+base+'.bin')
-            print(cmd)
-            if os.system(cmd):
-                print('error, skipping file')
+def conv_ps1_linux(files):
+    count = len(files)
+    for i, fn in enumerate(files):
+        path, name = os.path.split(fn)
+        path = path.rstrip(os.sep) + os.sep
+        base, ext = os.path.splitext(name)
+
+        if ext.lower() in ('.chd', ):
+            cmd = (chdman, 'extractcd', '-i', path+name, '-o',
+                    path+base+'.cue', '-ob', path+base+'.bin')
+            err, outp = run_process(cmd, None, tt.converting,
+                    False, tt.convstr.format(fn, i+1, count), True)
+            if err:
+                print('error, skipping file', name)
                 continue
-            os.remove(path+fn)
+            os.remove(path+name)
 
-            cmd = './cue2pops "{}"'.format(path+base+'.cue')
-
-            print(cmd)
-            if not os.system(cmd):
+            cmd = (cue2pops, path+base+'.cue')
+            err, outp = run_process(cmd, None, tt.converting,
+                    False, tt.convstr.format(fn, i+1, count), True)
+            if not err:
                 os.remove(path+base+'.cue')
                 os.remove(path+base+'.bin')
-        elif ext in ('.cue', '.CUE'):
-            cmd = './cue2pops "{}"'.format(path+base+'.cue')
-
-            print(cmd)
-            if not os.system(cmd):
+        elif ext.lower() in ('.cue',):
+            cmd = (cue2pops, path+base+'.cue')
+            err, outp = run_process(cmd, None, tt.converting,
+                    False, tt.convstr.format(fn, i+1, count), True)
+            if not err:
                 os.remove(path+base+'.cue')
-                os.remove(path+base+'.bin')'''
+                os.remove(path+base+'.bin')
