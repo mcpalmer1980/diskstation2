@@ -466,9 +466,9 @@ def conv_ps1():
     files = get_popup_folder_files(tt.source, tt.choose, options['history'],
             exts, True)
     files = filter_files(files)
-    remove = sg.popup_yes_no(tt.remove, title=tt.confirm) == 'Yes'
 
     if files:
+        remove = sg.popup_yes_no(tt.remove, title=tt.confirm) == 'Yes'
         if sys.platform == 'linux':
             conv_ps1_linux(files, remove)
 
