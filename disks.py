@@ -466,10 +466,11 @@ def conv_ps1():
     files = get_popup_folder_files(tt.source, tt.choose, options['history'],
             exts, True)
     files = filter_files(files)
+    remove = sg.popup_yes_no(tt.remove, title=tt.confirm) == 'Yes'
 
     if files:
         if sys.platform == 'linux':
-            conv_ps1_linux(files)
+            conv_ps1_linux(files, remove)
 
 def get_popup_folder_files(title, message, path, exts=None, allow_subs=False):
     if isinstance(path, str):
@@ -500,7 +501,7 @@ def get_popup_folder_files(title, message, path, exts=None, allow_subs=False):
     return chosen
 
 
-def conv_ps1_linux(files):
+def conv_ps1_linux(files, remove=False):
     count = len(files)
     for i, fn in enumerate(files):
         path, name = os.path.split(fn)
@@ -515,18 +516,19 @@ def conv_ps1_linux(files):
             if err:
                 print('error, skipping file', name)
                 continue
-            os.remove(path+name)
+            elif remove:
+                os.remove(path+name)
 
             cmd = (cue2pops, path+base+'.cue')
             err, outp = run_process(cmd, None, tt.converting,
                     False, tt.convstr.format(fn, i+1, count), True)
-            if not err:
+            if remove and not err:
                 os.remove(path+base+'.cue')
                 os.remove(path+base+'.bin')
         elif ext.lower() in ('.cue',):
             cmd = (cue2pops, path+base+'.cue')
             err, outp = run_process(cmd, None, tt.converting,
                     False, tt.convstr.format(fn, i+1, count), True)
-            if not err:
+            if remove and not err:
                 os.remove(path+base+'.cue')
                 os.remove(path+base+'.bin')

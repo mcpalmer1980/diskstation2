@@ -101,3 +101,5 @@ choose==Choose a PS1 game path
 source==Source
 convstr==Converting {} ({}/{})
 converting==Converting
+remove==Delete old files after conversion?
+confirm==Confirm
