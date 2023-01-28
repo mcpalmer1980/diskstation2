@@ -435,11 +435,9 @@ def filter_files(files):
     tt.set('filterfiles')
 
     if not files: return files
-    print(files)
     path = os.path.commonpath(files) if len(files) > 1 else os.path.split(files[0])[0]
     lookup = {os.path.relpath(f, path): f for f in files }
     items = sorted(lookup.keys(), key=nocase)
-    print(items)
 
     layout = [
         [sg.Listbox(items, size=(60, 10), key='list', enable_events=True,

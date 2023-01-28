@@ -30,7 +30,7 @@ def install_roms():
                         roms = edit_long_names(roms, long, opts)
                         if roms:
                             #print_roms(roms, 'Rom List')
-                            finish(path, roms)
+                            finish(path, roms, subs)
                             return
     print('User Canceled')
 
@@ -154,7 +154,7 @@ def scan_for_games(path):
         games[fn] = name, code, typ
     return games
 
-def finish(path, roms):
+def finish(path, roms, subs=False):
     def _rename(roms, path, reverse=False):
         path = path.rstrip(os.sep) + os.sep
         if reverse:
@@ -271,6 +271,19 @@ def finish(path, roms):
             for b in tt.buttons:
                 window[b].update(disabled=True)
             outpath = values['path']
+
+            if subs and False:
+                tfiles = disks.walk_ps2_path(dev, part, outpath, quiet=True)
+            else:
+                tfiles = disks.get_ps2_path(dev, part, outpath)
+            outfiles = [f for f in files if f not in tfiles]
+
+            dif = len(files) - len(outfiles)
+            if dif > 0:
+                if sg.popup_yes_no(tt.skipexist.format(dif), title=tt.confirm) == 'Yes':
+                    files = outfiles
+            print(files)
+
             disks.make_ps2_path(dev, part, outpath)
             outp = f'device {dev}\nmount {part}\ncd {outpath}\nlcd {target}\n'
             for f in files:

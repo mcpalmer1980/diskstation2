@@ -44,7 +44,7 @@ invert||Show hidden extensions and hide shown ones
 subfolders==Include Subfolders==Include files from all subfolders
 
 ::fnoptions::Filename options
-boxes::..==Remove double periods::'==Remove apostrophes::,the==Remove ",the"::the==Remove all "the"s::?==Remove (?!#) symbols::max==Strip long filenames::word==Strip long filenames::edit==Edit long filenames
+boxes::..==Remove double periods::'==Remove apostrophes::,the==Remove ",the"::the==Remove all "the"s::?==Remove (?!#) symbols::max==Strip long filenames::word==Strip partial words::edit==Edit long filenames
 maxlength==Max Length
 
 ::filterfiles::Filter File List
@@ -71,6 +71,8 @@ drive==PS2 Drive
 part==PS2 Partition
 path==PS2 Path
 folders==Select Folder
+confirm==Confirm
+skipexist==Skip {} files that already exist in the target folder?
 
 ::gameinstall::Install PS2 Games
 buttons::selected==Selected::unselected==Unselected::all==All

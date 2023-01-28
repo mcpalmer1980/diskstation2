@@ -432,9 +432,13 @@ def remove_window():
                     filelist = [p[0] for p in info.parts]
                 window['list'].update(filelist)
             elif sel and sel.endswith('/'):
-                path += sel
+                path += '/' + sel.lstrip('/')
                 window['list'].update(['scanning...'])
-                filelist = ['..'] + get_ps2_path(dev, part, path)
+                r = get_ps2_path(dev, part, path)
+                print('path', path)
+                print('return', r)
+
+                filelist = ['..'] + r # + get_ps2_path(dev, part, path)
                 window['list'].update(filelist)
             update_buttons()
         elif event == tt.selected:
